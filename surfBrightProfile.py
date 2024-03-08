@@ -11,9 +11,11 @@ from photutils.isophote import EllipseGeometry
 from photutils.isophote import Ellipse
 from photutils.aperture import EllipticalAperture
 from astropy.visualization import ZScaleInterval
+from scipy import integrate
 
 SYS_TIME = str(int(time.time())) # System Time, for purposes of naming files uniquely
 PIX_SCALE = 0.031 # arcsec/pix, from https://jwst-docs.stsci.edu/jwst-near-infrared-camera
+DISPLAY_MODE = True
 
 def get_data_fits(path=None, cropX=None, cropY=None):
     """
@@ -45,7 +47,7 @@ def find_center(dat=None):
 
     return cen
 
-def isophote_fit_image(dat=None, cen0=None, rMax=20, nRings=0):
+def isophote_fit_image(dat=None, cen0=None, rInit=1, rMax=20, eps=0.01, pa=0, nRings=0):
     """
     Determine surface brights at points radius, r, outward using photoutils
     ---
@@ -66,7 +68,7 @@ def isophote_fit_image(dat=None, cen0=None, rMax=20, nRings=0):
     # Create isophote out to r_max
         # Works by starting in the center with a fit of a circle, then iterating at steps of 0.1
         # until it hits maxsma=r_max. Each iteration slightly changes the eps, pa, and x-y center.
-    g = EllipseGeometry(x0=cen0[0], y0=cen0[1], sma=rMax, eps=0.01, pa=(120 / 180.0) * np.pi)    # Make the outline of the initial guess using
+    g = EllipseGeometry(x0=cen0[0], y0=cen0[1], sma=rInit, eps=eps, pa=(pa / 180.0) * np.pi)    # Make the outline of the initial guess using
                                                                                                     # above parameters
     g.find_center(dat) # This runs a seperate fitting algorithim to adjust center from previous step.
                         # It then updates the values g.x0 and g.y0 automatically
@@ -91,10 +93,10 @@ def isophote_fit_image(dat=None, cen0=None, rMax=20, nRings=0):
                                            # there are more isophotes between the ones displayed.
             isos.append(iso.sampled_coordinates())
             plt.plot(iso.sampled_coordinates()[0], iso.sampled_coordinates()[1], color='k', linewidth=0.5)
-    plt.show()
+    if DISPLAY_MODE:
+        plt.show()
 
     return isolist.sma, isolist.intens, isolist.int_err, isos, cen_new
-
 
 def data_visualizer(dat=None, cen0=np.array([0, 0]), cenFinal=np.array([0, 0]), rings=None, units=False, save=False):
     """
@@ -192,10 +194,50 @@ def plot_sb_profile(r=None, SB=None, err=None, sigma=10, r_forth=False, units=Fa
 
     return None
 
+def calc_petrosian_radius(SB=None, radius=None):
+    adda = 0.2 # Target constant
+
+    # Ranges: 0.5, 0.75, 1 (50%, 75%, 100% of radius)
+    rtarget = int(SB.size*0.75)-1
+    nummerArr = [int(SB.size*0.5)-1, int(SB.size*1)-1]
+
+    # Calc nummerator of pertrosian function, fancyR
+    numerInterior = (2*np.pi*SB[nummerArr[0]:nummerArr[1]]) * radius[nummerArr[0]:nummerArr[1]]
+    numerSB = integrate.trapezoid(numerInterior, radius[nummerArr[0]:nummerArr[1]])
+    numerArea = (np.pi*(radius[nummerArr[1]]**2)) - (np.pi*(radius[nummerArr[0]]**2)) # Inner - Outer Area (ring @ 50% and 75% radius)
+    numerator = numerSB/numerArea
+
+    # Calc denomerator of pertrosian function, fancyR
+    denomInterior = (2*np.pi*SB[:rtarget]) * radius[:rtarget]
+    denomSB = integrate.trapezoid(denomInterior, radius[:rtarget]) # dx evolves with x=radius[:rtarget]
+    denomArea = (np.pi*(radius[rtarget]**2)) # Area within radius = r_target
+    denomenator = denomSB/denomArea
+
+    # Final calculation of pertrosian function, fancyR
+    fancyR = numerator/denomenator
+
+    # Find at what radius is the SB closest to fancyR
+    targetSB = fancyR*adda
+    adjustedSB = np.absolute(SB - targetSB)
+    targetIndex = adjustedSB.argmin()
+    petrosianRadius = radius[targetIndex]
+
+    ### DEBUG
+    # print("Nearest element to the given values is : ", SB[index])
+    # print("Index of nearest value is : ", index)
+    # print(fancyR*adda)
+    # print(SB)
+    # print(SB.size)
+    # print(radius.size)
+    # print(int(SB.size*r))
+    # print(nummerArr)
+
+    return petrosianRadius
+
 if __name__ == "__main__":
     mainPath = r'downloads\jw01181-o098_t010_nircam_clear-f115w_i2d.fits'
-    cropY, cropX = [3625, 3750], [1525, 1700]
-    # cropY, cropX = [3425, 3950], [1225, 2000] # Eliptical, but zoomed out more
+    # cropY, cropX = [3625, 3750], [1525, 1700]
+    cropY, cropX = [3425, 3950], [1225, 2000] # Eliptical, but zoomed out more
     # cropY, cropX = [2675, 2975], [275, 500] # Alt Galaxy, Spiral?
     realUnits = False
 
@@ -207,14 +249,20 @@ if __name__ == "__main__":
 
     print("Creating isophotes...")
     # Elliptical
-    radius, SB, err, isophotes, cen_new = isophote_fit_image(dat=data, cen0=cen, rMax=30, nRings=5)
+    radius, SB, err, isophotes, cen_new = isophote_fit_image(dat=data, cen0=cen, rMax=150, nRings=50)
 
     # Spiral
     # radius, SB, err, isophotes, cen_new = isophote_fit_image(data=data, cen0=cen, r_max=120, n_rings=5)
 
-    print("Displaying data...")
-    # data_visualizer(dat=data, cen0=cen, cenFinal=cen_new, rings=isophotes, units=realUnits, save=False) # With isophotes
-    # data_visualizer(dat=data)
+    if DISPLAY_MODE:
+        print("Displaying data...")
+        data_visualizer(dat=data, cen0=cen, cenFinal=cen_new, rings=isophotes, units=realUnits, save=False) # With isophotes
+        data_visualizer(dat=data)
 
-    # print("Plotting surface brightness profile...")
-    # plot_sb_profile(r=radius, SB=SB, err=err, sigma=10, r_forth=False, units=realUnits, save=False)
+        print("Plotting surface brightness profile...")
+        plot_sb_profile(r=radius, SB=SB, err=err, sigma=10, r_forth=False, units=realUnits, save=False)
+
+    print("Calculating Petrosian Radius...")
+    petrosianRadius = calc_petrosian_radius(SB=SB, radius=radius)
+    print("The Calculated Petrosian Radius is: ", petrosianRadius)
+    print("The end of SB array is r = ", radius[-1])
