@@ -236,33 +236,39 @@ def calc_petrosian_radius(SB=None, radius=None):
 
 if __name__ == "__main__":
     mainPath = r'downloads\jw01181-o098_t010_nircam_clear-f115w_i2d.fits'
-    # cropY, cropX = [3625, 3750], [1525, 1700]
-    cropY, cropX = [3425, 3950], [1225, 2000] # Eliptical, but zoomed out more
-    # cropY, cropX = [2675, 2975], [275, 500] # Alt Galaxy, Spiral?
     realUnits = False
 
     print("Obtaining data from FITS...")
+    # cropY, cropX = [3625, 3750], [1525, 1700]
+    cropY, cropX = [3425, 3950], [1225, 2000] # Eliptical, but zoomed out more
+    # cropY, cropX = [2675, 2975], [275, 500] # Alt Galaxy, Spiral
     data, header = get_data_fits(path=mainPath, cropX=cropX, cropY=cropY)
+    # with fits.open(mainPath) as hdul:
+    #     header = hdul[0].header
+    #     data = hdul['SCI'].data
+    #     data = data[cropY[0]:cropY[1], cropX[0]:cropX[1]]
 
     print("Obtaining initial center..")
-    cen = find_center(dat=data)
+    # cen = find_center(dat=data)
+    cen = [np.where(data == np.max(data))[1][0],
+           np.where(data == np.max(data))[0][0]] # Center = max flux
 
     print("Creating isophotes...")
     # Elliptical
     radius, SB, err, isophotes, cen_new = isophote_fit_image(dat=data, cen0=cen, rMax=150, nRings=50)
 
-    # Spiral
-    # radius, SB, err, isophotes, cen_new = isophote_fit_image(data=data, cen0=cen, r_max=120, n_rings=5)
+    # # Spiral
+    # radius, SB, err, isophotes, cen_new = isophote_fit_image(dat=data, cen0=cen, rInit=130, rMax=150, eps=0.7, pa=120, nRings=50)
 
     if DISPLAY_MODE:
         print("Displaying data...")
         data_visualizer(dat=data, cen0=cen, cenFinal=cen_new, rings=isophotes, units=realUnits, save=False) # With isophotes
-        data_visualizer(dat=data)
+        data_visualizer(dat=data, save=False)
 
         print("Plotting surface brightness profile...")
         plot_sb_profile(r=radius, SB=SB, err=err, sigma=10, r_forth=False, units=realUnits, save=False)
 
-    print("Calculating Petrosian Radius...")
-    petrosianRadius = calc_petrosian_radius(SB=SB, radius=radius)
-    print("The Calculated Petrosian Radius is: ", petrosianRadius)
-    print("The end of SB array is r = ", radius[-1])
+    # print("Calculating Petrosian Radius...")
+    # petrosianRadius = calc_petrosian_radius(SB=SB, radius=radius)
+    # print("The Calculated Petrosian Radius is: ", petrosianRadius)
+    # print("The end of SB array is r = ", radius[-1])
