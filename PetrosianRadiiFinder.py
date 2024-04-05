@@ -30,7 +30,7 @@ from astropy.visualization.mpl_normalize import ImageNormalize
 
 SYS_TIME = str(int(time.time())) # System Time, for purposes of naming files uniquely
 PIX_SCALE = 0.031 # arcsec/pix, from https://jwst-docs.stsci.edu/jwst-near-infrared-camera
-DISPLAY_MODE = True
+DISPLAY_MODE = False
 
 def get_data_fits(path=None, bin=0):
     """
@@ -144,7 +144,7 @@ def image_seg_kron_apertures(data, cat, display=False):
     plt.show()
     return
 
-def isophote_fit_image_aper(dat, aper, eps=0.01, nRings=0):
+def isophote_fit_image_aper(dat, aper, eps=0.01, nRings=0, display=False):
     """
     Determine surface brights at points radius, r, outward using photoutils
     ---
@@ -164,8 +164,8 @@ def isophote_fit_image_aper(dat, aper, eps=0.01, nRings=0):
 
     cen = [aper.positions[0], aper.positions[1]] # Grab updated centers
 
-    plt.imshow(dat, origin='lower', vmin=z1, vmax=z2) # Plot ALL data from fits, bounded
-    aper.plot(color='r')
+    # plt.imshow(dat, origin='lower', vmin=z1, vmax=z2) # Plot ALL data from fits, bounded
+    # aper.plot(color='r')
 
     g = EllipseGeometry(x0=cen[0], y0=cen[1], sma=aper.a, eps=eps, pa=(aper.theta / 180.0) * np.pi)
     ellipse = Ellipse(dat, geometry=g)
@@ -184,8 +184,8 @@ def isophote_fit_image_aper(dat, aper, eps=0.01, nRings=0):
             iso = isolist.get_closest(sma) # Displayed isophotes are just the closest isophotes to a certain desired sma, but
                                            # there are more isophotes between the ones displayed.
             isos.append(iso.sampled_coordinates())
-            plt.plot(iso.sampled_coordinates()[0], iso.sampled_coordinates()[1], color='k', linewidth=0.5)
-    if DISPLAY_MODE:
+            plt.plot(iso.sampled_coordinates()[0], iso.sampled_coordinates()[1], color='g', linewidth=1)
+    if display:
         plt.show()
 
     return isolist.sma, isolist.intens, isolist.int_err, isolist.to_table()['ellipticity'], isos
@@ -280,46 +280,6 @@ def plot_sb_profile(r=None, SB=None, err=None, sigma=10, r_forth=False, units=Fa
 
     return None
 
-def calc_petrosian_radius_old(SB=None, radius=None):
-    adda = 0.2 # Target constant
-
-    # Ranges: 0.5, 0.75, 1 (50%, 75%, 100% of radius)
-    rtarget = int(SB.size*0.75)-1
-    nummerArr = [int(SB.size*0.5)-1, int(SB.size*1)-1]
-
-    # Calc nummerator of pertrosian function, fancyR
-    numerInterior = (2*np.pi*SB[nummerArr[0]:nummerArr[1]]) * radius[nummerArr[0]:nummerArr[1]]
-    numerSB = trapezoid(numerInterior, radius[nummerArr[0]:nummerArr[1]])
-    numerArea = (np.pi*(radius[nummerArr[1]]**2)) - (np.pi*(radius[nummerArr[0]]**2)) # Inner - Outer Area (ring @ 50% and 75% radius)
-    numerator = numerSB/numerArea
-
-    # Calc denomerator of pertrosian function, fancyR
-    denomInterior = (2*np.pi*SB[:rtarget]) * radius[:rtarget]
-    denomSB = trapezoid(denomInterior, radius[:rtarget]) # dx evolves with x=radius[:rtarget]
-    denomArea = (np.pi*(radius[rtarget]**2)) # Area within radius = r_target
-    denomenator = denomSB/denomArea
-
-    # Final calculation of pertrosian function, fancyR
-    fancyR = numerator/denomenator
-
-    # Find at what radius is the SB closest to fancyR
-    targetSB = fancyR*adda
-    adjustedSB = np.absolute(SB - targetSB)
-    targetIndex = adjustedSB.argmin()
-    petrosianRadius = radius[targetIndex]
-
-    ### DEBUG
-    # print("Nearest element to the given values is : ", SB[index])
-    # print("Index of nearest value is : ", index)
-    # print(fancyR*adda)
-    # print(SB)
-    # print(SB.size)
-    # print(radius.size)
-    # print(int(SB.size*r))
-    # print(nummerArr)
-
-    return petrosianRadius
-
 def petrosian_radius(radius=None, SB=None, eps=None):
     adda = 0.2  # Target constant
     sens = 0.1
@@ -351,30 +311,49 @@ if __name__ == "__main__":
 
     print("Obtaining data from FITS...")
     data, header = get_data_fits(path=mainPath, bin=bin)
-    data = data[3425:3950, 1225:2000] # Just temporarily manually cropping
+    data = data[0:3950, 0:2000] # Just temporarily manually cropping
 
     print("Segmenting image...")
     sources_x, sources_y, sources_eps, apers = image_segmintation(data, threshold=0.6)
 
-    print("Fiting isophotes...")
-    n = 1
-    center0 = (sources_x[n], sources_y[n])
-    eps0 = float(sources_eps[n])
-    aper0 = apers[n]
-    radius, SB, err, isoeps, isos = isophote_fit_image_aper(data, aper0, eps=eps0, nRings=10)
+    quick_plot(data, title="Isophotes, "+str(len(apers)), show=False)
+    aperSB = []
+    aperradii = []
+    apererr = []
+    petrosians = []
+    for i in range(len(apers)):
+        print("Fiting isophotes [", i, "]...")
+        center0 = (sources_x[i], sources_y[i])
+        eps0 = float(sources_eps[i])
+        aper0 = apers[i]
+        radius, SB, err, isoeps, isos = isophote_fit_image_aper(data, aper0, eps=eps0, nRings=10, display=False)
+        if len(radius) > 0:
+            aperSB.append(SB)              # Store Values for later
+            aperradii.append(radius)
+            apererr.append(err)
 
-    print("Plotting surface brightness profile...")
-    plot_sb_profile(r=radius, SB=SB, err=err, sigma=10, units=False, save=False)
+            print("Calculating petrosian radii [", i, "]...")
+            petro_r = petrosian_radius(radius=radius, SB=SB, eps=isoeps)
+            print("Petrosian Radius [", i, "]:", petro_r)
+            petrosians.append(petro_r)
+        else:
+            print("[", i, "] No meaningful fit was possible.")
+    plt.show()
 
-    print("Calculating petrosian radii...")
-    print("Petrosian Radius:", petrosian_radius(radius=radius, SB=SB, eps=isoeps))
-    # Sanity Check:
-    # print(petro_r_avg_SB(a=radius[:50], eps=isoeps[:50], SB=SB[:50]))
-    # Averages <~10 are >>1 since its right at that bright center, but they quickly drop
-    # I looked at DS9 and saw the same
-    # DS9 avg @ 111: 0.4285, Mine: 0.0017414880080206133
-    # Weird, its report a waaaaaay too low value
-    # I found the issue, the integral isn't calculating right. I'll fix later.
+    for i in range(len(aperradii)):
+        print("Plotting surface brightness profile [", i, "]...")
+        plot_sb_profile(r=aperradii[i], SB=aperSB[i], err=apererr[i], sigma=10, units=realUnits, save=False)
 
+    print(petrosians)
+
+    """
+    Sanity Check:
+    print(petro_r_avg_SB(a=radius[:50], eps=isoeps[:50], SB=SB[:50]))
+    Averages <~10 are >>1 since its right at that bright center, but they quickly drop
+    I looked at DS9 and saw the same
+    DS9 avg @ 111: 0.4285, Mine: 0.0017414880080206133
+    Weird, its report a waaaaaay too low value
+    I found the issue, the integral isn't calculating right. I'll fix later.
+    """
 
 
