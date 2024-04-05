@@ -46,15 +46,16 @@ def full_process(data=None):
 
     # Remove Background
     ## This step may be unnessasary if the FITS are already BG subtracted
-    print("Removing background...")
-    bkg_estimator = MedianBackground()
-    bkg = Background2D(data, (50, 50), filter_size=(3, 3),
-                       bkg_estimator=bkg_estimator)
-    data -= bkg.background  # subtract the background
-    plot_data(data=data, title="Background Subtracted", label="[pixels]")
-
-    # Setting threshold for ###
-    threshold = 20 * bkg.background_rms
+    # print("Removing background...")
+    # bkg_estimator = MedianBackground()
+    # bkg = Background2D(data, (50, 50), filter_size=(3, 3),
+    #                    bkg_estimator=bkg_estimator)
+    # data -= bkg.background  # subtract the background
+    # plot_data(data=data, title="Background Subtracted", label="[pixels]")
+    #
+    # # Setting threshold for ###
+    # threshold = 20 * bkg.background_rms
+    threshold = 0.5
 
 
 
@@ -183,12 +184,12 @@ def process_sans_bkg_reduction(data=None):
 if __name__ == "__main__":
     # path = "downloads/jw01181-o098_t010_nircam_clear-f115w_i2d.fits"
     # data, header = get_data_fits(path, bin=1)
-    path = "downloads/elliptical_cropped.fits"
-    data, header = get_data_fits(path, bin=0)
+    path = "downloads/jw01181-o098_t010_nircam_clear-f115w_i2d.fits"
+    data, header = get_data_fits(path, bin='SCI')
 
     plot_data(data=data)
 
-    # full_process(data=data)
+    full_process(data=data)
 
     # process_sans_bkg_reduction(data=data)
 
