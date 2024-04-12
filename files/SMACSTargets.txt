@@ -1,4 +1,4 @@
-'#See Table B1   
+#See Table B1
 #Spectroscopic redshift catalogue   
 ID RA DEC Z_GRISM ZERR_GRISM Z_SPEC
 244 110.795717 -73.478566 0.3941 0.0021 ""

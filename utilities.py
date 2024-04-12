@@ -5,6 +5,7 @@ import numpy as np
 from astropy.modeling.models import Gaussian2D
 from photutils.datasets import make_noise_image
 
+
 def dms_to_degrees(dms_string):     # FOR USE ON DECLINATION AND LATITUDE
     degrees, minutes, seconds = map(float, dms_string.split(':'))
     degrees += minutes / 60 + seconds / 3600
@@ -88,16 +89,25 @@ def centerPoint(array, point):
 
     return newArr
 
-def errorSum(array):
-    lastLine = 0
-    for line in array:
-        print(line)
-        lastVal = 0
-        for val in line:
-            lastVal = np.sqrt(lastVal**2 + val**2)
-        lastLine = np.sqrt(lastLine**2 + lastVal**2)
+# def errorSum(array):
+#     # print('array:', array)
+#     lastLine = 0
+#     for line in array:
+#         lastLine = np.sqrt(lastLine**2 + line**2)
+#
+#
+#     lastVal = 0
+#     for val in lastLine:
+#         lastVal = np.sqrt(lastVal**2 + val**2)
+#
+#
+#     return lastVal
 
-    return lastLine
+def errorSum(array):
+    array *= array
+    sum = np.nansum(array)
+
+    return np.sqrt(sum)
 
 # Theta in degrees
 def mockGalaxy(xSD, ySD, theta, nx, ny):
@@ -108,3 +118,4 @@ def mockGalaxy(xSD, ySD, theta, nx, ny):
     data = g(x, y) + noise
 
     return data
+

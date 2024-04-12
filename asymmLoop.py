@@ -8,7 +8,14 @@ import matplotlib.pyplot as plt
 import os
 from photutils.isophote import EllipseGeometry
 
-path = 'files/SMACSGalPics/imsAsArrCrop'
+def getCenter(x, y):
+    g = EllipseGeometry(x0=x, y0=y, sma=1, eps=0.01, pa=(120 / 180.0) * np.pi)  # Make the outline of the initial guess using                                                                                             # above parameters
+    g.find_center(galaxyArr)
+    center = [[int(g.y0)], [int(g.x0)]]  # Grab updated centers
+
+    return center
+
+path = 'files/SMACSGalPics/arraysWError'
 fileList = os.listdir(path)
 # print(fileList)
 
@@ -28,15 +35,15 @@ for file in fileList:
     else:
         idList.append(file[0:5])
 
-    galaxyArr = np.load(f'{path}/{file}')
-    # galWithErr = np.load(f'{path}/{file}')
-    # galaxyArr = galWithErr[:, :, 0]
-    # err = galWithErr[:, :, 1]
+    # galaxyArr = np.load(f'{path}/{file}')
+    galWithErr = np.load(f'{path}/{file}')
+    galaxyArr = galWithErr[:, :, 0]
+    err = galWithErr[:, :, 1]
     origImage = im.fromarray(galaxyArr)
     # origImage.show()
 
     # Finding center of galaxy
-    print(galaxyArr.shape)
+    # print(galaxyArr.shape)
     (yMax, xMax) = galaxyArr.shape
     # centerBoxX = round(0.9 * (0.5*xMax))  # Narrowing the scope of the search for brightest point
     # centerBoxY = round(0.9 * (0.5*yMax))  # to avoid centering around wrong object
@@ -45,10 +52,14 @@ for file in fileList:
     originXY = np.where(galaxyArr == galaxyArr.max())
     originX = originXY[1][0]
     originY = originXY[0][0]
-    print(galaxyArr)
-    g = EllipseGeometry(x0=originX, y0=originY, sma=1, eps=0.01, pa=(120 / 180.0) * np.pi)  # Make the outline of the initial guess using                                                                                             # above parameters
-    g.find_center(galaxyArr)
-    originXY = [[int(g.y0)], [int(g.x0)]]  # Grab updated centers
+
+    # originXY = getCenter(originX, originY)
+    # originX = originXY[1][0]
+    # originY = originXY[0][0]
+    # print(galaxyArr)
+    # g = EllipseGeometry(x0=originX, y0=originY, sma=1, eps=0.01, pa=(120 / 180.0) * np.pi)  # Make the outline of the initial guess using                                                                                             # above parameters
+    # g.find_center(galaxyArr)
+    # originXY = getCenter(originX, originY)  # Grab updated centers
     # print(originXY)
     # print(originXY)
 
@@ -68,16 +79,18 @@ for file in fileList:
 
     # Cropping image around center of galaxy scaled
     galaxyArrCropped = galaxyArr[originY-yMargin:originY+(yMargin+1), originX-xMargin:originX+(xMargin+1)]
-    # errCropped = galaxyArr[originXY[0][0] - xMargin:originXY[0][0] + (xMargin + 1),
-    #                    originXY[1][0] - yMargin:originXY[1][0] + (yMargin + 1)]
+    errCropped = err[originY-yMargin:originY+(yMargin+1), originX-xMargin:originX+(xMargin+1)]
 
+    # print(errCropped.shape)
+    # print(galaxyArrCropped.shape)
+    # print()
     # plt.imshow(galaxyArrCropped)
     # plt.show()
     origImageCropped = im.fromarray(galaxyArrCropped)
 
     # Rotating image
     galaxyArr180 = scipy.ndimage.rotate(galaxyArrCropped, 180)
-    # err180 = scipy.ndimage.rotate(errCropped, 180)
+    err180 = scipy.ndimage.rotate(errCropped, 180)
     image180 = im.fromarray(galaxyArr180)
     # imageAdd = im.fromarray(galaxyArrCropped + galaxyArr180)
     # imageAdd.show()
@@ -89,30 +102,38 @@ for file in fileList:
     # Asymmetry calculations without square
     # subtracting rotated from original
     numerator1 = np.sum(abs(galaxyArrCropped - galaxyArr180))
-    # errNum1 = utils.errorSum(np.sqrt(errCropped ** 2 + err180 ** 2))
+    errNum1 = utils.errorSum(np.sqrt(errCropped ** 2 + err180 ** 2))
     # Summing original image
     denominator1 = 2 * np.sum(abs(galaxyArrCropped))
-    # errDenom1 = utils.errorSum(errCropped ** 2)
+    # errDenom1 = 2 * utils.errorSum(np.sqrt((errCropped/galaxyArrCropped)**2 * 2) * denominator1)
+    errDenom1 = 2 * utils.errorSum(errCropped)
 
     # print(denominator1, file)
     A = numerator1 / denominator1
-    A /= np.sqrt(yMax * xMax)
-    # totalErr1 = np.sqrt((errNum1 / numerator1) ** 2 + (errDenom1 / denominator1) ** 2)
+    # A /= np.sqrt(yMax * xMax)
+    totalErr1 = np.sqrt((errNum1 / numerator1) ** 2 + (errDenom1 / denominator1) ** 2) * A
     # A /= np.sqrt(len(galaxyArrCropped))
     absAList.append(A)
-    # err1List.append(totalErr1)
+    err1List.append(totalErr1)
     # print(f'Absolute value A: {A}')
 
     # Asymmetry calculations with square
     # subtracting rotated from original and squaring
     numerator2 = np.sum((galaxyArrCropped - galaxyArr180)**2)
+    # errNum2 = utils.errorSum(np.sqrt(2 * (np.sqrt(errCropped**2 + err180**2)/(galaxyArrCropped - galaxyArr180)))) * numerator2
+    subtraction = np.sqrt(errCropped**2 + err180**2)
+    square = np.sqrt((subtraction/(galaxyArrCropped - galaxyArr180))**2 * 2) * (galaxyArrCropped - galaxyArr180)**2
+    errNum2 = utils.errorSum(square)
 
     # Summing original image
     denominator2 = 2 * np.sum(galaxyArrCropped**2)
+    errDenom2 = 2 * utils.errorSum(np.sqrt((errCropped/galaxyArrCropped)**2 * 2) * galaxyArrCropped**2)
 
     sqrdA = numerator2 / denominator2
+    totalErr2 = np.sqrt((errNum2 / numerator2) ** 2 + (errDenom2 / denominator2) ** 2) * sqrdA
     # sqrdA /= np.sqrt(yMax * xMax)
     sqrdAList.append(np.sqrt(sqrdA))
+    err2List.append(totalErr2)
     # print(f'Squared A: {np.sqrt(A)}')
 
     # Displaying images
@@ -135,7 +156,7 @@ for file in fileList:
 
 plt.scatter(absAList, sqrdAList)
 # print(np.array(err1List))
-# plt.errorbar(absAList, sqrdAList, xerr=err1List)
+# plt.errorbar(absAList, sqrdAList, xerr=err1List, fmt='o')
 plt.xlabel('Abs. Val. Method')
 plt.ylabel('Squared Method')
 plt.show()
@@ -153,7 +174,7 @@ plt.clf()
 
 # getting z values for each target based on ID
 zList = []
-f = open('files/SMACSTargets2.txt')
+f = open('files/SMACSTargets.txt')
 count = 0
 for line in f:
     if count <= 2:
@@ -168,10 +189,17 @@ for line in f:
 zArr = np.array(zList)
 zList = list(map(float, zArr))
 
-
-plt.scatter(zList, absAList)
-plt.scatter(zList, sqrdAList)
-plt.legend(['absA', 'sqrdA'])
+print(err2List)
+# plt.errorbar(zList, sqrdAList, yerr=err2List, fmt='o')
+plt.errorbar(zList, absAList, yerr=err1List, fmt='o')
+# plt.legend(['absA', 'sqrdA'])
 plt.xlabel('z')
 plt.ylabel('A')
+plt.show()
+plt.clf()
+
+plt.scatter(zList, absAList)
+# plt.legend(['absA', 'sqrdA'])
+plt.xlabel('z')
+plt.ylabel('Abs. Val. A')
 plt.show()

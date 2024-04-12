@@ -10,7 +10,7 @@ problemChildren = [11, 13, 30, 31, 32, 35, 40]
 coordsList = []
 
 
-f = open('files/SMACSTargets2.txt', 'r')
+f = open('files/SMACSTargets.txt', 'r')
 count = 0
 for line in f:
     if count <= 2:
@@ -66,15 +66,15 @@ for coord in coordsList:
     headersci = fitsimage[sciii].header
     # print(repr(headersci))
     headerphu = fitsimage[phu].header
-    print(f"target RA:{headerphu['TARG_RA']}")
-    print(f"target dec:{headerphu['TARG_DEC']}")
+    # print(f"target RA:{headerphu['TARG_RA']}")
+    # print(f"target dec:{headerphu['TARG_DEC']}")
 
     # Now grab the necessary info from the header (usually [SCI] or [1] extension) that is relevant
     # to the world-coordinate-system wcs
     wcs = WCS(headersci)
 
     xHDF, yHDF = wcs.all_world2pix([[hdfra/u.deg, hdfdec/u.deg]], 0)[0]
-    print(xHDF, yHDF)
+    # print(xHDF, yHDF)
 
     xRange = 30
     yRange = 30
@@ -98,7 +98,7 @@ for coord in coordsList:
     data = np.array(image)
 
     galaxy = data[yLower:yUpper, xLower:xUpper]# * 200
-    err = data[yLower:yUpper, xLower:xUpper]
+    err = err[yLower:yUpper, xLower:xUpper]
     galWithErr = np.dstack((galaxy, err))
     # print(galaxy.shape)
     # print(galWithErr.shape)
@@ -123,7 +123,7 @@ for coord in coordsList:
         np.save(f'files/SMACSGalPics/problemChildren/{ID}galaxy{index}.npy', galaxy)
         plt.imsave(f'files/SMACSGalPics/problemChildren/{ID}galaxy{index}.png', galaxy, cmap='gray', vmin=0.2, vmax=0.6)
     else:
-        np.save(f'files/SMACSGalPics/imsAsArrays/{ID}galaxy{index}.npy', galaxy)
+        np.save(f'files/SMACSGalPics/arraysWError/{ID}galaxy{index}.npy', galWithErr)
         plt.imsave(f'files/SMACSGalPics/images/{ID}galaxy{index}.png', galaxy, cmap='gray', vmin=0.2, vmax=0.6)
 
     index += 1
