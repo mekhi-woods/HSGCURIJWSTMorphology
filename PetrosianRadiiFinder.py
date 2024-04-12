@@ -32,6 +32,25 @@ SYS_TIME = str(int(time.time())) # System Time, for purposes of naming files uni
 PIX_SCALE = 0.031 # arcsec/pix, from https://jwst-docs.stsci.edu/jwst-near-infrared-camera
 DISPLAY_MODE = False
 
+class petrosianObject():
+    def __init__(self, ID='None', pos=(0, 0), SB=[], SBerr=[], iso_radii=[], iso_eps=[], isolist=None, aper=None, petroR=0.00):
+        self.ID = ID
+        self.pos = pos
+        self.SB = SB
+        self.SBerr = SBerr
+        self.iso_radii = iso_radii
+        self.iso_eps = iso_eps
+        self.isolist = isolist
+        self.aper = aper
+        self.petroR = petroR
+        return
+
+    def __str__(self):
+        return("Petrosian object, " + str(self.ID) + " | Center Position: " + str(self.pos) + ", " +
+                                                     "Petrosian Radius: " + str(self.petroR))
+        # return(str(self.ID) + str(self.pos) + str(self.iso_radii) + str(self.SB) +
+        #        str(self.SBerr) + str(self.iso_eps) + str(self.aper) + str(self.petroR))
+
 def get_data_fits(path=None, bin=0):
     """
     Read in data from fits file
@@ -170,25 +189,25 @@ def isophote_fit_image_aper(dat, aper, eps=0.01, nRings=0, display=False):
     g = EllipseGeometry(x0=cen[0], y0=cen[1], sma=aper.a, eps=eps, pa=(aper.theta / 180.0) * np.pi)
     ellipse = Ellipse(dat, geometry=g)
     isolist = ellipse.fit_image() # Creates isophotes using the geometry of 'g', so using above parameters as the bounds
-    print("Number of isophotes: ", len(isolist.to_table()['sma']))
+    # print("Number of isophotes: ", len(isolist.to_table()['sma']))
 
-    # Plots the isophotes over some interval -- this part is PURELY cosmetic, it doesn't do anything
-    isos = [] # A list of isophote x-y positions to plot later
-    if nRings == -1:                            # nRings=-1 plots all the rings
-        nRings = len(isolist.to_table()['sma'])
-    if nRings != 0 and len(isolist.to_table()['sma']) > 0: # Makes sure that there is data from the isophote fit
-        rMax = isolist.to_table()['sma'][-1]  # Largest radius
-        rings = np.arange(0, rMax, rMax / nRings)
-        rings += rMax / nRings
-        for sma in rings:
-            iso = isolist.get_closest(sma) # Displayed isophotes are just the closest isophotes to a certain desired sma, but
-                                           # there are more isophotes between the ones displayed.
-            isos.append(iso.sampled_coordinates())
-            plt.plot(iso.sampled_coordinates()[0], iso.sampled_coordinates()[1], color='g', linewidth=1)
-    if display:
-        plt.show()
+    # # Plots the isophotes over some interval -- this part is PURELY cosmetic, it doesn't do anything
+    # isos = [] # A list of isophote x-y positions to plot later
+    # if nRings == -1:                            # nRings=-1 plots all the rings
+    #     nRings = len(isolist.to_table()['sma'])
+    # if nRings != 0 and len(isolist.to_table()['sma']) > 0: # Makes sure that there is data from the isophote fit
+    #     rMax = isolist.to_table()['sma'][-1]  # Largest radius
+    #     rings = np.arange(0, rMax, rMax / nRings)
+    #     rings += rMax / nRings
+    #     for sma in rings:
+    #         iso = isolist.get_closest(sma) # Displayed isophotes are just the closest isophotes to a certain desired sma, but
+    #                                        # there are more isophotes between the ones displayed.
+    #         isos.append(iso.sampled_coordinates())
+    #         plt.plot(iso.sampled_coordinates()[0], iso.sampled_coordinates()[1], color='g', linewidth=1)
+    # if display:
+    #     plt.show()
 
-    return isolist.sma, isolist.intens, isolist.int_err, isolist.to_table()['ellipticity'], isos
+    return isolist.sma, isolist.intens, isolist.int_err, isolist.to_table()['ellipticity'], isolist
 
 def data_visualizer(dat=None, cen0=np.array([0, 0]), cenFinal=np.array([0, 0]), rings=None, units=False, save=False):
     """
@@ -250,7 +269,7 @@ def data_visualizer(dat=None, cen0=np.array([0, 0]), cenFinal=np.array([0, 0]), 
 
     return None
 
-def plot_sb_profile(r=None, SB=None, err=None, sigma=10, r_forth=False, units=False, save=False):
+def plot_sb_profile(ID='', r=None, SB=None, err=None, sigma=10, r_forth=False, units=False, save=False):
     """
     Plot the surface brightness profile
     ---
@@ -272,13 +291,31 @@ def plot_sb_profile(r=None, SB=None, err=None, sigma=10, r_forth=False, units=Fa
     # Plot SB vs radius [arcsec]
     plt.errorbar(r, SB, yerr=(err) * sigma, fmt='o', ms=marker_size)
     plt.xlabel("Radius, r " + unit)
-    plt.title(SYS_TIME + '\nSurface Brightness Profile, ' + unit)
+    plt.title(SYS_TIME + "_" + str(ID) + '\nSurface Brightness Profile, ' + unit)
     plt.ylabel("Intensity, I [MJy/sr]")
     if save:
         plt.savefig(r"results\SBprofile_" + str(int(SYS_TIME)) + ".png")
     plt.show()
 
     return None
+
+def plot_isophote_rings(isolist=None, nRings=10, c='g', display=True):
+    # Plots the isophotes over some interval -- this part is PURELY cosmetic, it doesn't do anything
+    isos = [] # A list of isophote x-y positions to plot later
+    if nRings == -1:                            # nRings=-1 plots all the rings
+        nRings = len(isolist.to_table()['sma'])
+    if nRings != 0 and len(isolist.to_table()['sma']) > 0: # Makes sure that there is data from the isophote fit
+        rMax = isolist.to_table()['sma'][-1]  # Largest radius
+        rings = np.arange(0, rMax, rMax / nRings)
+        rings += rMax / nRings
+        for sma in rings:
+            iso = isolist.get_closest(sma) # Displayed isophotes are just the closest isophotes to a certain desired sma, but
+                                           # there are more isophotes between the ones displayed.
+            isos.append(iso.sampled_coordinates())
+            plt.plot(iso.sampled_coordinates()[0], iso.sampled_coordinates()[1], color=c, linewidth=1)
+    if display:
+        plt.show()
+    return
 
 def petrosian_radius(radius=None, SB=None, eps=None):
     adda = 0.2  # Target constant
@@ -308,52 +345,69 @@ if __name__ == "__main__":
     mainPath = r'downloads\jw01181-o098_t010_nircam_clear-f115w_i2d.fits'
     realUnits = False
     bin = 'SCI'
+    petroObjs = []
 
+    '''
+    OBTAIN
+    '''
     print("Obtaining data from FITS...")
     data, header = get_data_fits(path=mainPath, bin=bin)
-    data = data[0:3950, 0:2000] # Just temporarily manually cropping
+    data = data[3400:3950, 1220:2000] # Just temporarily manually cropping
+    # data = data[3400:3950, 1220:2000] # Just temporarily manually cropping
 
     print("Segmenting image...")
     sources_x, sources_y, sources_eps, apers = image_segmintation(data, threshold=0.6)
 
-    quick_plot(data, title="Isophotes, "+str(len(apers)), show=False)
-    aperSB = []
-    aperradii = []
-    apererr = []
-    petrosians = []
+    '''
+    BREAK DOWN
+    '''
     for i in range(len(apers)):
-        print("Fiting isophotes [", i, "]...")
-        center0 = (sources_x[i], sources_y[i])
-        eps0 = float(sources_eps[i])
-        aper0 = apers[i]
-        radius, SB, err, isoeps, isos = isophote_fit_image_aper(data, aper0, eps=eps0, nRings=10, display=False)
-        if len(radius) > 0:
-            aperSB.append(SB)              # Store Values for later
-            aperradii.append(radius)
-            apererr.append(err)
+        print("[", i, "] Fiting isophotes...")
+        tempObj = petrosianObject(ID=i, pos=(sources_x[i], sources_y[i]), iso_eps=float(sources_eps[i]), aper=apers[i])
+        tempObj.iso_radii, tempObj.SB, tempObj.SBerr, tempObj.iso_eps, tempObj.isolist = isophote_fit_image_aper(data,
+                                                                                                                 aper=tempObj.aper,
+                                                                                                                 eps=tempObj.iso_eps,
+                                                                                                                 nRings=10,
+                                                                                                                 display=False)
 
-            print("Calculating petrosian radii [", i, "]...")
-            petro_r = petrosian_radius(radius=radius, SB=SB, eps=isoeps)
-            print("Petrosian Radius [", i, "]:", petro_r)
-            petrosians.append(petro_r)
+        if len(tempObj.iso_radii) > 0:
+            print("[", i, "] Calculating petrosian radii...")
+            petro_r = petrosian_radius(radius=tempObj.iso_radii, SB=tempObj.SB, eps=tempObj.iso_eps)
+            tempObj.petroR = petro_r
         else:
             print("[", i, "] No meaningful fit was possible.")
+            tempObj.petroR = None
+
+        petroObjs.append(tempObj)
+
+
+    '''
+    DISPLAY
+    '''
+    quick_plot(data, title="Isophotes, "+str(len(apers)), show=False)
+    for i in range(len(petroObjs)):
+        if len(petroObjs[i].iso_radii) > 0:
+            print("[", i, "] Plotting isophote rings...")
+            plot_isophote_rings(isolist=petroObjs[i].isolist, nRings=10, c='r', display=False)
     plt.show()
 
-    for i in range(len(aperradii)):
-        print("Plotting surface brightness profile [", i, "]...")
-        plot_sb_profile(r=aperradii[i], SB=aperSB[i], err=apererr[i], sigma=10, units=realUnits, save=False)
-
-    print(petrosians)
-
-    """
-    Sanity Check:
-    print(petro_r_avg_SB(a=radius[:50], eps=isoeps[:50], SB=SB[:50]))
-    Averages <~10 are >>1 since its right at that bright center, but they quickly drop
-    I looked at DS9 and saw the same
-    DS9 avg @ 111: 0.4285, Mine: 0.0017414880080206133
-    Weird, its report a waaaaaay too low value
-    I found the issue, the integral isn't calculating right. I'll fix later.
-    """
+    for i in range(len(petroObjs)):
+        if len(petroObjs[i].iso_radii) > 0:
+            print("[", i, "] Plotting surface brightness profile...")
+            plot_sb_profile(ID=i, r=petroObjs[i].iso_radii, SB=petroObjs[i].SB, err=petroObjs[i].SBerr, sigma=10, units=realUnits, save=False)
 
 
+
+
+    #
+    # """
+    # Sanity Check:
+    # print(petro_r_avg_SB(a=radius[:50], eps=isoeps[:50], SB=SB[:50]))
+    # Averages <~10 are >>1 since its right at that bright center, but they quickly drop
+    # I looked at DS9 and saw the same
+    # DS9 avg @ 111: 0.4285, Mine: 0.0017414880080206133
+    # Weird, its report a waaaaaay too low value
+    # I found the issue, the integral isn't calculating right. I'll fix later.
+    # """
+    #
+    #
