@@ -47,7 +47,8 @@ class petrosianObject():
 
     def __str__(self):
         return("Petrosian object, " + str(self.ID) + " | Center Position: " + str(self.pos) + ", " +
-                                                     "Petrosian Radius: " + str(self.petroR))
+                                                     "Petrosian Radius [pix]: " + str(self.petroR) + ", " +
+                                                     "Petrosian Radius [arcsec]: " + str(self.petroR*PIX_SCALE))
         # return(str(self.ID) + str(self.pos) + str(self.iso_radii) + str(self.SB) +
         #        str(self.SBerr) + str(self.iso_eps) + str(self.aper) + str(self.petroR))
 
@@ -163,7 +164,7 @@ def image_seg_kron_apertures(data, cat, display=False):
     plt.show()
     return
 
-def isophote_fit_image_aper(dat, aper, eps=0.01, nRings=0, display=False):
+def isophote_fit_image_aper(dat, aper, eps=0.01, nIsos=30, display=False):
     """
     Determine surface brights at points radius, r, outward using photoutils
     ---
@@ -188,7 +189,7 @@ def isophote_fit_image_aper(dat, aper, eps=0.01, nRings=0, display=False):
 
     g = EllipseGeometry(x0=cen[0], y0=cen[1], sma=aper.a, eps=eps, pa=(aper.theta / 180.0) * np.pi)
     ellipse = Ellipse(dat, geometry=g)
-    isolist = ellipse.fit_image() # Creates isophotes using the geometry of 'g', so using above parameters as the bounds
+    isolist = ellipse.fit_image(maxit=nIsos, maxsma=(aper.a*1.5)) # Creates isophotes using the geometry of 'g', so using above parameters as the bounds
     # print("Number of isophotes: ", len(isolist.to_table()['sma']))
 
     # # Plots the isophotes over some interval -- this part is PURELY cosmetic, it doesn't do anything
@@ -291,7 +292,7 @@ def plot_sb_profile(ID='', r=None, SB=None, err=None, sigma=10, r_forth=False, u
     # Plot SB vs radius [arcsec]
     plt.errorbar(r, SB, yerr=(err) * sigma, fmt='o', ms=marker_size)
     plt.xlabel("Radius, r " + unit)
-    plt.title(SYS_TIME + "_" + str(ID) + '\nSurface Brightness Profile, ' + unit)
+    plt.title(SYS_TIME + " [" + str(ID) + "]" + '\nSurface Brightness Profile, ' + unit)
     plt.ylabel("Intensity, I [MJy/sr]")
     if save:
         plt.savefig(r"results\SBprofile_" + str(int(SYS_TIME)) + ".png")
@@ -317,25 +318,25 @@ def plot_isophote_rings(isolist=None, nRings=10, c='g', display=True):
         plt.show()
     return
 
-def petrosian_radius(radius=None, SB=None, eps=None):
+def petrosian_radius(radius=None, SB=None):
     adda = 0.2  # Target constant
-    sens = 0.1
-    petro_r = 0
+    sens = 0.005
+    petro_r = -0.1 # Default Value, means no petrosian found
 
     for i in range(2, len(radius)):
         localSB = SB[i]
-        integratedSB = petro_r_avg_SB(a=radius[:i], eps=eps[:i], SB=SB[:i])
+        integratedSB = petro_r_avg_SB(r=radius[:i], SB=SB[:i])
 
         if abs(integratedSB - (adda*localSB)) < sens:
+            print(integratedSB, adda*localSB)
             petro_r = radius[i]
             break
     return petro_r
 
-def petro_r_avg_SB(a=None, eps=None, SB=None):
-    b = a[-1] - (eps[-1]*a[-1]) # Semi-minor Axis
+def petro_r_avg_SB(r=None, SB=None):
 
-    SBtoR = simpson(y=SB, x=a) * 2 * np.pi
-    area = np.pi*a[-1]*b
+    SBtoR = simpson(y=SB, x=r) * 2 * np.pi
+    area = np.pi*r[-1]**2
 
     avgSBwithinR = SBtoR/area
 
@@ -352,11 +353,11 @@ if __name__ == "__main__":
     '''
     print("Obtaining data from FITS...")
     data, header = get_data_fits(path=mainPath, bin=bin)
-    data = data[3400:3950, 1220:2000] # Just temporarily manually cropping
+    data = data[0:3950, 0:2000] # Just temporarily manually cropping
     # data = data[3400:3950, 1220:2000] # Just temporarily manually cropping
 
     print("Segmenting image...")
-    sources_x, sources_y, sources_eps, apers = image_segmintation(data, threshold=0.6)
+    sources_x, sources_y, sources_eps, apers = image_segmintation(data, threshold=0.9)
 
     '''
     BREAK DOWN
@@ -367,12 +368,12 @@ if __name__ == "__main__":
         tempObj.iso_radii, tempObj.SB, tempObj.SBerr, tempObj.iso_eps, tempObj.isolist = isophote_fit_image_aper(data,
                                                                                                                  aper=tempObj.aper,
                                                                                                                  eps=tempObj.iso_eps,
-                                                                                                                 nRings=10,
+                                                                                                                 nIsos=10,
                                                                                                                  display=False)
 
         if len(tempObj.iso_radii) > 0:
             print("[", i, "] Calculating petrosian radii...")
-            petro_r = petrosian_radius(radius=tempObj.iso_radii, SB=tempObj.SB, eps=tempObj.iso_eps)
+            petro_r = petrosian_radius(radius=tempObj.iso_radii, SB=tempObj.SB)
             tempObj.petroR = petro_r
         else:
             print("[", i, "] No meaningful fit was possible.")
@@ -384,21 +385,19 @@ if __name__ == "__main__":
     '''
     DISPLAY
     '''
-    quick_plot(data, title="Isophotes, "+str(len(apers)), show=False)
-    for i in range(len(petroObjs)):
-        if len(petroObjs[i].iso_radii) > 0:
-            print("[", i, "] Plotting isophote rings...")
-            plot_isophote_rings(isolist=petroObjs[i].isolist, nRings=10, c='r', display=False)
-    plt.show()
 
     for i in range(len(petroObjs)):
+        quick_plot(data, title="Isophotes [" + str(i) + "]", show=False)
         if len(petroObjs[i].iso_radii) > 0:
+            print("[", i, "] Plotting isophote rings...")
+            plot_isophote_rings(isolist=petroObjs[i].isolist, nRings=-1, c='g', display=False)
+            plt.show()
+
             print("[", i, "] Plotting surface brightness profile...")
             plot_sb_profile(ID=i, r=petroObjs[i].iso_radii, SB=petroObjs[i].SB, err=petroObjs[i].SBerr, sigma=10, units=realUnits, save=False)
 
-
-
-
+            print(petroObjs[i])
+        time.sleep(0.5) # Pause between requests
     #
     # """
     # Sanity Check:
