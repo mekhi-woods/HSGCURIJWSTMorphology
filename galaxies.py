@@ -6,6 +6,7 @@ from astropy.wcs import WCS
 import matplotlib.pyplot as plt
 import scipy
 import data
+import time
 
 class Galaxy(object):
 
@@ -34,6 +35,10 @@ class Galaxy(object):
     def squaredA(self, croppedArr, arr180, croppedErr, err180):
         pass
 
+    # Plots image
+    def showImage(self):
+        pass
+
     # Returns RA and DEC
     def getCoords(self):
         pass
@@ -55,7 +60,7 @@ class Galaxy(object):
 class RegularGalaxy(Galaxy):
     def __init__(self, ID, RA, DEC, z, obName):
         self.ID = ID
-        self.infits = data.infits
+        self.infitsList = data.infitsList
         self.RA = RA
         self.DEC = DEC
         self.obName = obName
@@ -65,102 +70,57 @@ class RegularGalaxy(Galaxy):
         hdfra = float(self.RA) * u.deg
         hdfdec = float(self.DEC) * u.deg
 
-        infile = self.infits.removesuffix(".fits") + ".fits"
+        for infits in self.infitsList:
+            # time.sleep(1)
+            galaxy, err = utils.isolateGal(hdfra, hdfdec, infits)
+            if len(galaxy) > 1:
+                yMax, xMax = galaxy.shape
+                if yMax == 0 or xMax == 0:
+                    # print(f"Dimension is 0: (ID-{self.ID}, {yMax}, {xMax})")
+                    continue
+                elif 0.0 in galaxy:
+                    continue
+                else:
+                    originXY = np.where(galaxy == galaxy.max())
+                    center = (originXY[1][0], originXY[0][0])
+                    (yMax, xMax) = galaxy.shape
+                    dimensions = (yMax, xMax, center)
 
-        # Open the image - the data and the header separately
-        fitsimage = fits.open(infile)
-        ncards = len(fitsimage)
-        headerword = 'CRVAL1'
+                    origToEdgeX = xMax - center[0]
+                    origToEdgeY = yMax - center[1]
 
-        phu = 0
-        sciii = phu
-        badc = 0
-        for ii in range(0, ncards):
-            headname = fitsimage[ii].name
-            try:
-                valhead = fitsimage[ii].header[headerword]
-                sciii = ii
-                break
-            except:
-                badc += 1
-                valhead = "INDEF"
+                    # Finding margins around center point
+                    if origToEdgeX < center[0]:
+                        xMargin = round(origToEdgeX * 0.9)
+                    else:
+                        xMargin = round(center[0] * 0.9)
 
-        headersci = fitsimage[sciii].header
+                    if origToEdgeY < center[1]:
+                        yMargin = round(origToEdgeY * 0.9)
+                    else:
+                        yMargin = round(center[1] * 0.9)
 
-        # Now grab the necessary info from the header (usually [SCI] or [1] extension) that is relevant
-        # to the world-coordinate-system wcs
-        wcs = WCS(headersci)
+                    self.croppedArr = galaxy[center[1] - yMargin:center[1] + (yMargin + 1),
+                                 center[0] - xMargin:center[0] + (xMargin + 1)]
 
-        xHDF, yHDF = wcs.all_world2pix([[hdfra / u.deg, hdfdec / u.deg]], 0)[0]
+                    croppedErr = err[center[1] - yMargin:center[1] + (yMargin + 1),
+                                 center[0] - xMargin:center[0] + (xMargin + 1)]
 
-        xRange = 50
-        yRange = 50
+                    originXY = np.where(self.croppedArr == self.croppedArr.max())
+                    center = (originXY[1][0], originXY[0][0])
+                    (yMax, xMax) = self.croppedArr.shape
 
-        xLower = round(xHDF - xRange)
-        xUpper = round(xHDF + xRange)
-        yLower = round(yHDF - yRange)
-        yUpper = round(yHDF + yRange)
+                    if yMax/xMax > 2 or xMax/yMax > 2:
+                        # print(f"Weird dimensions: (ID-{self.ID}, {yMax}, {xMax})")
+                        continue
+                    else:
+                        self.dimensions = (yMax, xMax, center)
+                        self.galWithErr = np.dstack((self.croppedArr, croppedErr))
 
-        with fits.open(self.infits) as hdul:
-            data = hdul[1].data
-            err = hdul['ERR'].data
-
-        dataYMax, dataXMax = data.shape
-        if yUpper < dataYMax and xUpper < dataXMax:
-            galaxy = data[yLower:yUpper, xLower:xUpper]
-            err = err[yLower:yUpper, xLower:xUpper]
-
-            yMax, xMax = galaxy.shape
-            if yMax == 0 or xMax == 0:
-                print(f"Dimension is 0: (ID-{self.ID}, {yMax}, {xMax})")
-                return False
+                        return True
             else:
-                originXY = np.where(galaxy == galaxy.max())
-                center = (originXY[1][0], originXY[0][0])
-                (yMax, xMax) = galaxy.shape
-                dimensions = (yMax, xMax, center)
-
-                origToEdgeX = xMax - center[0]
-                origToEdgeY = yMax - center[1]
-
-                # Finding margins around center point
-                if origToEdgeX < center[0]:
-                    xMargin = round(origToEdgeX * 0.9)
-                else:
-                    xMargin = round(center[0] * 0.9)
-
-                if origToEdgeY < center[1]:
-                    yMargin = round(origToEdgeY * 0.9)
-                else:
-                    yMargin = round(center[1] * 0.9)
-
-                croppedArr = galaxy[center[1] - yMargin:center[1] + (yMargin + 1),
-                             center[0] - xMargin:center[0] + (xMargin + 1)]
-
-                croppedErr = err[center[1] - yMargin:center[1] + (yMargin + 1),
-                             center[0] - xMargin:center[0] + (xMargin + 1)]
-
-                originXY = np.where(croppedArr == croppedArr.max())
-                center = (originXY[1][0], originXY[0][0])
-                (yMax, xMax) = croppedArr.shape
-
-                if yMax/xMax > 2 or xMax/yMax > 2:
-                    print(f"Weird dimensions: ({self.ID}, {yMax}, {xMax})")
-                    return False
-                else:
-
-                    self.dimensions = (yMax, xMax, center)
-                    self.galWithErr = np.dstack((croppedArr, croppedErr))
-
-                    if display:
-                        plt.imshow(croppedArr)
-                        plt.title(f'{self.ID}, {self.RA}, {self.DEC}')
-                        plt.show()
-                        plt.clf()
-                    return True
-        else:
-            print('Out of bounds')
-            return False
+                # print(f'Out of bounds: ID-{self.ID}')
+                continue
 
     def asymmetry(self, abso=True, sqrd=False, multi=False):
         galaxy = self.galWithErr[:, :, 0]
@@ -222,7 +182,8 @@ class RegularGalaxy(Galaxy):
                     # sqrdA /= np.sqrt(xMax * yMax)
                     AList.append(sqrdA)
                     errList.append(errSqrdA)
-
+            AList.append(self.ID)
+            errList.append(self.ID)
             return AList, errList
 
     def absoluteA(self, croppedArr, arr180, croppedErr, err180):
@@ -253,6 +214,9 @@ class RegularGalaxy(Galaxy):
         totalErr = np.sqrt((errNum / numerator) ** 2 + (errDenom / denominator) ** 2) * asymmetry
 
         return (asymmetry, totalErr)
+
+    def showImage(self):
+        plt.imshow(self.croppedArr)
 
     def getCoords(self):
         return self.RA, self.DEC

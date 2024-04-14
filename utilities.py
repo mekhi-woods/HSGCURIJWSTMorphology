@@ -4,6 +4,9 @@ import datetime
 import numpy as np
 from astropy.modeling.models import Gaussian2D
 from photutils.datasets import make_noise_image
+from astropy.io import fits
+from astropy.wcs import WCS
+from astropy import units as u
 
 
 def dms_to_degrees(dms_string):     # FOR USE ON DECLINATION AND LATITUDE
@@ -89,20 +92,6 @@ def centerPoint(array, point):
 
     return newArr
 
-# def errorSum(array):
-#     # print('array:', array)
-#     lastLine = 0
-#     for line in array:
-#         lastLine = np.sqrt(lastLine**2 + line**2)
-#
-#
-#     lastVal = 0
-#     for val in lastLine:
-#         lastVal = np.sqrt(lastVal**2 + val**2)
-#
-#
-#     return lastVal
-
 def errorSum(array):
     array *= array
     sum = np.nansum(array)
@@ -119,3 +108,55 @@ def mockGalaxy(xSD, ySD, theta, nx, ny):
 
     return data
 
+def isolateGal(hdfra, hdfdec, infits):
+    infile = infits.removesuffix(".fits") + ".fits"
+
+    # Open the image - the data and the header separately
+    fitsimage = fits.open(infile)
+    ncards = len(fitsimage)
+    headerword = 'CRVAL1'
+
+    phu = 0
+    sciii = phu
+    badc = 0
+    for ii in range(0, ncards):
+        headname = fitsimage[ii].name
+        try:
+            valhead = fitsimage[ii].header[headerword]
+            sciii = ii
+            break
+        except:
+            badc += 1
+            valhead = "INDEF"
+
+    headersci = fitsimage[sciii].header
+
+    # Now grab the necessary info from the header (usually [SCI] or [1] extension) that is relevant
+    # to the world-coordinate-system wcs
+    wcs = WCS(headersci)
+
+    xHDF, yHDF = wcs.all_world2pix([[hdfra / u.deg, hdfdec / u.deg]], 0)[0]
+
+    if xHDF < 0 or yHDF < 0:
+        return [0], [0]
+
+    xRange = 50
+    yRange = 50
+
+    xLower = round(xHDF - xRange)
+    xUpper = round(xHDF + xRange)
+    yLower = round(yHDF - yRange)
+    yUpper = round(yHDF + yRange)
+
+    with fits.open(infits) as hdul:
+        data = hdul[1].data
+        err = hdul['ERR'].data
+
+    dataYMax, dataXMax = data.shape
+    if yUpper < dataYMax and xUpper < dataXMax:
+        galaxy = data[yLower:yUpper, xLower:xUpper]
+        err = err[yLower:yUpper, xLower:xUpper]
+
+        return galaxy, err
+    else:
+        return [0], [0]
