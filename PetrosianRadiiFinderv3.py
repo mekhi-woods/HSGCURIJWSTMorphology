@@ -1,7 +1,7 @@
 """
 Created by Mekhi D. Woods
 04/03/2024
-Current Version: 1.0
+Current Version: 3.0
 
 """
 import os
@@ -28,6 +28,7 @@ from photutils.aperture import EllipticalAperture
 from photutils.background import Background2D, MedianBackground
 
 from astropy.utils.data import get_pkg_data_filename
+from astropy.wcs.utils import skycoord_to_pixel
 
 
 # from astropy.visualization import SqrtStretch
@@ -448,20 +449,40 @@ if __name__ == "__main__":
     realUnits = False
     bin = 'SCI'
     petroObjs = []
+    crop = [100, 100]
 
+    # OPEN FITS FILE
+    print("Obtaining data from FITS...")
+    with fits.open(altPath) as hdul:
+        hdu = hdul[bin]
+        data = hdu.data
+        hdr = hdu.header
+        datacoords = WCS(hdr)
+
+    # OPEN TARGET LIST
     targets = np.genfromtxt(targetPath, delimiter=',', dtype=str)
-    targets = targets[:, :5]
-    print(targets[1])
+    targets = targets[:, :5] # Clean columns
 
-    # with fits.open(altPath) as hdul:
-    #     hdu = hdul['SCI']
-    #     data = hdu.data
-    #     hdr = hdu.header
-    #     coords = WCS(hdr)
-    #
-    # # print(hdr)
-    # # quick_plot(data)
+    for t in range(1, len(targets)):
+        print(targets[t])
+        print(targets[t][1])
+
+        # tar = SkyCoord(float(targets[t][1]), float(targets[t][2]), unit="deg")
+        tar = np.array([targets[t][1], targets[t][2]], dtype=np.float64)
+        tarpix = datacoords.wcs_pix2world(tar, 0)
+        print(tar)
+        # print(datacoords.skycoord_to_pixel(tar))
+
+        break
+
+    # print(hdr)
+    # quick_plot(data)
     # print(coords.pixel_to_world(30, 40))
+
+
+
+
+
 
 
 
