@@ -342,7 +342,7 @@ def petro_r_avg_SB(a=None, eps=None, SB=None):
     return avgSBwithinR
 
 if __name__ == "__main__":
-    mainPath = r'downloads\jw01181-o098_t010_nircam_clear-f115w_i2d.fits'
+    mainPath = r'downloads\jw01181-c1009_t008_nircam_clear-f090w_i2d.fits'
     realUnits = False
     bin = 'SCI'
     petroObjs = []
@@ -352,11 +352,11 @@ if __name__ == "__main__":
     '''
     print("Obtaining data from FITS...")
     data, header = get_data_fits(path=mainPath, bin=bin)
-    data = data[3400:3950, 1220:2000] # Just temporarily manually cropping
+    # data = data[3400:3950, 1220:2000] # Just temporarily manually cropping
     # data = data[3400:3950, 1220:2000] # Just temporarily manually cropping
 
     print("Segmenting image...")
-    sources_x, sources_y, sources_eps, apers = image_segmintation(data, threshold=0.6)
+    sources_x, sources_y, sources_eps, apers = image_segmintation(data, threshold=0.65)
 
     '''
     BREAK DOWN
@@ -380,6 +380,9 @@ if __name__ == "__main__":
 
         petroObjs.append(tempObj)
 
+        if i > 10:
+            break
+
 
     '''
     DISPLAY
@@ -393,8 +396,9 @@ if __name__ == "__main__":
 
     for i in range(len(petroObjs)):
         if len(petroObjs[i].iso_radii) > 0:
+            print("[", i, "] Petrosian radius...", petroObjs[i].petroR)
             print("[", i, "] Plotting surface brightness profile...")
-            plot_sb_profile(ID=i, r=petroObjs[i].iso_radii, SB=petroObjs[i].SB, err=petroObjs[i].SBerr, sigma=10, units=realUnits, save=False)
+            plot_sb_profile(ID=str(i)+" | "+str(petroObjs[i].pos), r=petroObjs[i].iso_radii, SB=petroObjs[i].SB, err=petroObjs[i].SBerr, sigma=10, units=realUnits, save=False)
 
 
 

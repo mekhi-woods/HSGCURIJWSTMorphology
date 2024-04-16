@@ -1,7 +1,7 @@
 """
 Created by Mekhi D. Woods
 04/03/2024
-Current Version: 3.0
+Current Version: 1.0
 
 """
 import os
@@ -31,14 +31,10 @@ from astropy.utils.data import get_pkg_data_filename
 from astropy.wcs.utils import skycoord_to_pixel
 
 
-# from astropy.visualization import SqrtStretch
-# from astropy.visualization.mpl_normalize import ImageNormalize
 
 SYS_TIME = str(int(time.time())) # System Time, for purposes of naming files uniquely
 PIX_SCALE = 0.031 # arcsec/pix, from https://jwst-docs.stsci.edu/jwst-near-infrared-camera
 DISPLAY_MODE = False
-fn = get_pkg_data_filename('data/j94f05bgq_flt.fits', package='astropy.wcs.tests')
-
 
 class petrosianObject():
     def __init__(self, ID='None', pos=(0, 0), SB=[], SBerr=[], iso_radii=[], iso_eps=[], isolist=None, aper=None, petroR=0.00):
@@ -55,102 +51,21 @@ class petrosianObject():
 
     def __str__(self):
         return("Petrosian object, " + str(self.ID) + " | Center Position: " + str(self.pos) + ", " +
-                                                     "Petrosian Radius [pix]: " + str(self.petroR) + ", " +
-                                                     "Petrosian Radius [arcsec]: " + str(self.petroR*PIX_SCALE))
-        # return(str(self.ID) + '\n' + str(self.pos) + '\n' + str(self.iso_radii) + '\n' + str(self.SB) + '\n' +
-        #        str(self.SBerr) + '\n' + str(self.iso_eps) + '\n' + str(self.aper) + '\n' + str(self.petroR))
+                                                     "Petrosian Radius: " + str(self.petroR))
+        # return(str(self.ID) + str(self.pos) + str(self.iso_radii) + str(self.SB) +
+        #        str(self.SBerr) + str(self.iso_eps) + str(self.aper) + str(self.petroR))
 
-def queryMAST(file='targets.txt'):
-    # Construct targets list
-    print("Constructing targets list...")
-    targets_txt = np.genfromtxt(fname="targets.txt", delimiter="\t", dtype="float")
-    targets = SkyCoord(ra=(targets_txt[:, 0]) * u.degree, dec=(targets_txt[:, 1]) * u.degree)
-    print("Targets list constructed.")
-
-    targetList = []
-    for i in range(len(targets)):
-        targetList.append(queryMAST_download(id=(queryMAST_pull(ra=targets[i].ra.degree, dec=targets[i].dec.degree))))
-    return targetList
-
-def queryMAST_pull(filter='F115W', dec=0, ra=0, sensitivity=0.01):
-    """
-    Query MAST database for JWST targets and obtain ids
-    ---
-    filter: string, desired JWST filter
-    dec: float64, target declination in degrees
-    ra: float64, target right ascension in degrees
-    sensitivity: float64, target sensitivity
-    ---
-    return: astropy.table, object ID of found target(s)
-    """
-    print("Querying MAST database with parameters: DEC=", dec, ", RA=", ra, ", Sensitivity=", sensitivity)
-    decRange = [dec - sensitivity, dec + sensitivity]
-    raRange = [ra - sensitivity, ra + sensitivity]
-    data = Observations.query_criteria(filters='F115W',  # Query MAST database for JWST targets
-                                       s_dec=decRange,
-                                       s_ra=raRange,
-                                       intentType="science",
-                                       instrument_name='NIRCAM/IMAGE',
-                                       dataproduct_type='IMAGE',
-                                       obs_collection='JWST',
-                                       dataRights="public",
-                                       calib_level=3)
-    print("Finished. Target ID: ", data['obsid'].data[0])
-    return data['obsid']
-
-def queryMAST_count(filter='F115W', dec=0, ra=0, sensitivity=0.01):
-    """
-    Query MAST database for JWST targets
-    ---
-    filter: string, desired JWST filter
-    dec: float64, target declination in degrees
-    ra: float64, target right ascension in degrees
-    sensitivity: float64, target sensitivity
-    ---
-    hits: int, number of found JWST targets within criteria
-    """
-    print("Counting hits from MAST database with parameters: DEC=", dec, ", RA=", ra, ", Sensitivity=", sensitivity)
-    decRange = [dec - sensitivity, dec + sensitivity]
-    raRange = [ra - sensitivity, ra + sensitivity]
-    hits = Observations.query_criteria_count(filters=filter,
-                                             s_dec=decRange,
-                                             s_ra=raRange,
-                                             intentType="science",
-                                             instrument_name='NIRCAM/IMAGE',
-                                             dataproduct_type='IMAGE',
-                                             obs_collection='JWST',
-                                             dataRights="public",
-                                             calib_level=3)
-    print("Finished. Number of hits: ", len(hits))
-    return hits
-
-def queryMAST_download(id=None, download_path="downloads\\"):
-    """
-    Downloads data associated with some astroquery id
-    ---
-    id: astropy.table, id of target to download
-    download_path: string, default download path
-    ---
-    return: None
-    """
-    print("Beginning download of data asscociated with ID:", str(id.data[0]))
-    # data_products = Observations.get_product_list(id) # ALL data products associated with ID
-
-    location = None
-    if os.path.isdir(download_path + str(id.data[0])):
-        print("Data already downloaded, skipping...\n")
-    else:
-        manifest = Observations.download_products(id,
-                                                  download_dir=download_path + str(id.data[0]),
-                                                  productType=["SCIENCE"],
-                                                  extension="fits",
-                                                  mrp_only=True)
-        print("Finished! ", str(id.data[0]), "can be found at...", manifest['Local Path'][0], "\n")
-        # Store the Save directory
-        with open(download_path+"downloads.txt", "a") as f:
-            f.write(manifest['Local Path'][0])
-        location = manifest['Local Path'][0]
-    return location
+    def print_all(self):
+        print("\n" +
+              "ID: " + str(self.ID) + '\n' +
+              "Pos: " + str(self.pos) + '\n' +
+              "Radii length: " + str(len(self.iso_radii)) + '\n' +
+              "SB length: " + str(len(self.SB)) + '\n' +
+              "SB Err length: " + str(len(self.SBerr)) + '\n' +
+              "Eps: " + str(len(self.iso_eps)) + '\n' +
+              str(self.aper) + '\n' +
+              "PetroR: " + str(self.petroR))
+        return
 
 def get_data_fits(path=None, bin=0):
     """
@@ -161,7 +76,7 @@ def get_data_fits(path=None, bin=0):
     Output: data_cropped, numpy.array; intensity values for cropped area of fits file
             hdr, astropy.io.fits.header.Header; header of the fits file
     """
-    with fits.open(path) as hdul:
+    with astropy.io.fits.open(path) as hdul:
         hdr = hdul[bin].header
         data = hdul[bin].data
 
@@ -179,48 +94,25 @@ def quick_plot(data=None, title="Default" , cmap='magma', interpolation='antiali
     return
 
 def image_segmintation(data, threshold=0.5, display=True):
-    if display:
-        print("Plotting raw data...")
+    print("Plotting raw data...")
     quick_plot(data=data, title="Raw data")
 
-    # if display:
-    #     print("Removing background...")
-    # bkg_removed_data = image_seg_background(data)
-    bkg_removed_data = data
+    print("Convolving data with a 2D kernal...")
+    convolved_data, kernel = image_seg_convolve(data, FWHM=3.0, size=5, display=display)
 
-    if display:
-        print("Convolving data with a 2D kernal...")
-    convolved_data, kernel = image_seg_convolve(data, FWHM=3.0, size=5, display=False)
-
-    if display:
-        print("Detecting sources in convolved data...")
+    print("Detecting sources in convolved data...")
     segment_map = image_seg_detect_sources(convolved_data, threshold=threshold, npixels=10, display=display)
 
-    if display:
-        print("Skiping deblend overlapping sources...")
-    segm_deblend = image_seg_deblend(convolved_data, segment_map, display=True)
+    print("Deblend overlapping sources...")
+    segm_deblend = image_seg_deblend(convolved_data, segment_map, display=display)
 
-    if display:
-        print("Catalog sources...")
+    print("Catalog sources...")
     cat, sources_x, sources_y, sources_eps, apers = image_seg_cat(data, segm_deblend, convolved_data, display=display)
 
-    if display:
-        print("Setting Kron apertures...")
+    print("Setting Kron apertures...")
     image_seg_kron_apertures(convolved_data, cat, display=display)
 
-
-
     return sources_x, sources_y, sources_eps, apers
-
-def image_seg_background(data):
-    bkg_estimator = MedianBackground()
-    bkg = Background2D(data, (50, 50), filter_size=(3, 3),
-                       bkg_estimator=bkg_estimator)
-    data -= bkg.background  # subtract the background
-    quick_plot(data=data, title="Background Subtracted")
-    # Setting threshold for ###
-    threshold = 20 * bkg.background_rms
-    return data, bkg.background_rms
 
 def image_seg_convolve(data, FWHM=3.0, size=5, display=False):
     """
@@ -280,14 +172,12 @@ def image_seg_kron_apertures(data, cat, display=False):
     z1, z2 = ZScaleInterval().get_limits(values=data)
     norm = simple_norm(data, 'sqrt')
     plt.imshow(data, origin='lower', cmap='magma', vmin=z1, vmax=z2)
-    plt.title('Initial Kron Apertures')
-    plt.xlabel('[pixels]')
-    plt.ylabel('[pixels]')
+    plt.title('kron apertures')
     cat.plot_kron_apertures(color='green', lw=1.5)
     plt.show()
     return
 
-def isophote_fit_image_aper(dat, aper, eps=0.01, nIsos=30, display=False):
+def isophote_fit_image_aper(dat, aper, eps=0.01):
     """
     Determine surface brights at points radius, r, outward using photoutils
     ---
@@ -312,7 +202,7 @@ def isophote_fit_image_aper(dat, aper, eps=0.01, nIsos=30, display=False):
 
     g = EllipseGeometry(x0=cen[0], y0=cen[1], sma=aper.a, eps=eps, pa=(aper.theta / 180.0) * np.pi)
     ellipse = Ellipse(dat, geometry=g)
-    isolist = ellipse.fit_image(maxit=nIsos, maxsma=(aper.a*1.5)) # Creates isophotes using the geometry of 'g', so using above parameters as the bounds
+    isolist = ellipse.fit_image(maxsma=(aper.a*1.5)) # Creates isophotes using the geometry of 'g', so using above parameters as the bounds
     # print("Number of isophotes: ", len(isolist.to_table()['sma']))
 
     # # Plots the isophotes over some interval -- this part is PURELY cosmetic, it doesn't do anything
@@ -415,7 +305,7 @@ def plot_sb_profile(ID='', r=None, SB=None, err=None, sigma=10, r_forth=False, u
     # Plot SB vs radius [arcsec]
     plt.errorbar(r, SB, yerr=(err) * sigma, fmt='o', ms=marker_size)
     plt.xlabel("Radius, r " + unit)
-    plt.title(SYS_TIME + " [" + str(ID) + "]" + '\nSurface Brightness Profile, ' + unit)
+    plt.title(SYS_TIME + "_" + str(ID) + '\nSurface Brightness Profile, ' + unit)
     plt.ylabel("Intensity, I [MJy/sr]")
     if save:
         plt.savefig(r"results\SBprofile_" + str(int(SYS_TIME)) + ".png")
@@ -441,26 +331,24 @@ def plot_isophote_rings(isolist=None, nRings=10, c='g', display=True):
         plt.show()
     return
 
-def petrosian_radius(radius=None, SB=None):
+def petrosian_radius(radius=None, SB=None, eps=None, sens=0.01):
     adda = 0.2  # Target constant
-    sens = 0.005
-    petro_r = -0.1 # Default Value, means no petrosian found
+    petro_r = 0
 
     for i in range(2, len(radius)):
         localSB = SB[i]
-        integratedSB = petro_r_avg_SB(r=radius[:i], SB=SB[:i])
+        integratedSB = petro_r_avg_SB(a=radius[:i], eps=eps[:i], SB=SB[:i])
 
-        print(integratedSB, adda * localSB)
         if abs(integratedSB - (adda*localSB)) < sens:
-            print(integratedSB, adda*localSB)
             petro_r = radius[i]
             break
     return petro_r
 
-def petro_r_avg_SB(r=None, SB=None):
+def petro_r_avg_SB(a=None, eps=None, SB=None):
+    b = a[-1] - (eps[-1]*a[-1]) # Semi-minor Axis
 
-    SBtoR = simpson(y=SB, x=r) * 2 * np.pi
-    area = np.pi*r[-1]**2
+    SBtoR = simpson(y=SB, x=a) * 2 * np.pi
+    area = np.pi*a[-1]*b
 
     avgSBwithinR = SBtoR/area
 
@@ -476,6 +364,8 @@ def world_to_pix(data, crd, targetPath):
     targets = targets[:, :4]
     targetIDs = targets[:, 0]
 
+
+
     plt.imshow(data, origin="lower", cmap='magma', vmin=0, vmax=0.5)
     plt.title("Targets from Gus List over FITS-C1009-T008-NIRCAM-F090W")
     for t in targets:
@@ -483,7 +373,7 @@ def world_to_pix(data, crd, targetPath):
         DEC = t[2]
         coordWorld = SkyCoord(ra=RA, dec=DEC, unit="deg")
         coordPix = coordWorld.to_pixel(crd, 0)
-        allCoordPix.append(coordPix)
+        allCoordPix.append(np.array([coordPix[0], coordPix[1]]))
         plt.plot(coordPix[0], coordPix[1], marker='+', color='g')
     plt.show()
     return allCoordPix, targetIDs
@@ -513,16 +403,10 @@ def crop_sorter(targets=None, data=None, display=False):
     return cropedTargets, cropedtargetsPix
 
 if __name__ == "__main__":
-    mainPath = r'downloads\jw01181-o098_t010_nircam_clear-f115w_i2d.fits'
-    altPath=r'downloads/jw01181-c1009_t008_nircam_clear-f090w_i2d.fits'
-    targetPath = r'targets.csv'
-    realUnits = False
-    bin = 'SCI'
-    petroObjs = []
-    imageSegSens = 0.6
-
-
     # OPEN FITS FILE
+    mainPath = r'downloads\jw01181-c1009_t008_nircam_clear-f090w_i2d.fits'
+    altPath=r'downloads/jw01181-c1009_t008_nircam_clear-f090w_i2d.fits'
+    bin = 'SCI'
     print("Obtaining data from FITS...")
     with fits.open(altPath) as hdul:
         hdu = hdul[bin]
@@ -531,190 +415,127 @@ if __name__ == "__main__":
         datacoords = WCS(hdr)
 
     # OPEN TARGET LIST
+    targetPath = r'targets.csv'
     print("Sorting target list...")
     targetsPix, targetIDs = world_to_pix(data, datacoords, targetPath)
 
-    # SET CROPS
-    print("Cropping data around targets...")
-    cropedTargets, cropedtargetsPix = crop_sorter(targets=targetsPix, data=data, display=False)
+    # SOURCE DETECTION
+    sourceThreshold = 0.65
+    print("Detecting sources (segmenting image)...")
+    sources_x, sources_y, sources_eps, apers = image_segmintation(data, threshold=sourceThreshold, display=False)
+    positions = []
+    for i in range(len(sources_x)):
+        positions.append(np.array([sources_x[i], sources_y[i]]))
 
-    for targetIndex in range(26, len(cropedTargets)):  # FIX ME - RANGE
-        sources_x, sources_y, sources_eps, apers = image_segmintation(data=cropedTargets[targetIndex],
-                                                                      threshold=imageSegSens,
-                                                                      display=False)
-        tempObj = petrosianObject(ID=int(targetIDs[targetIndex]), pos=(sources_x[0], sources_y[0]), iso_eps=float(sources_eps[0]),
-                                  aper=apers[0])
-        tempObj.iso_radii, tempObj.SB, tempObj.SBerr, tempObj.iso_eps, tempObj.isolist = isophote_fit_image_aper(
-            dat=cropedTargets[targetIndex],
-            aper=tempObj.aper,
-            eps=tempObj.iso_eps,
-            nIsos=10,
-            display=True)
-        quick_plot(cropedTargets[targetIndex], title="Isophotes", show=False)
-        plt.xlabel('[pixels]')
-        plt.ylabel('[pixels]')
-        plot_isophote_rings(isolist=tempObj.isolist, nRings=-1, c='g', display=False)
+    # DETERMINE SOURCE OVERLAP WITH TARGET LIST
+    overlapSens = 20
+    overlappedPositions = []
+    overlappedEps = []
+    overlappedApers = []
+    overlappedIDs = []
+    for i in range(len(targetsPix)):
+        for j in range(len(positions)):
+            if abs(positions[j][0] - targetsPix[i][0]) < overlapSens and abs(positions[j][1] - targetsPix[i][1]) < overlapSens:
+                overlappedPositions.append(np.array([positions[j][0], positions[j][1]]))
+                overlappedEps.append(sources_eps[j])
+                overlappedApers.append(apers[j])
+                overlappedIDs.append(targetIDs[i])
+
+    # CHECK OVERLAP
+    quick_plot(data, title='Overlap from Gus Targets & Source Detection', show=False)
+    for t in targetsPix:
+        plt.plot(t[0], t[1], marker='+', color='g')
+    for p in overlappedPositions:
+        plt.plot(p[0], p[1], marker='x', color='b')
+    plt.xlim(-1000, 4500); plt.ylim(2500, 8250)
+    plt.show()
+
+    # MAKE PETRO OBJECTS
+    petroObjs = []
+    for i in range(len(overlappedPositions)):
+        tempObj = petrosianObject(ID = int(overlappedIDs[i]), pos = overlappedPositions[i], aper=overlappedApers[i], iso_eps=float(overlappedEps[i]))
+        petroObjs.append(tempObj)
+        # tempObj.print_all()
+
+    # PROCESSING
+    for i in range(len(petroObjs)):
+        # ISOPHOTE FIT
+        print("[", petroObjs[i].ID, "] Fiting isophotes...")
+        petroObjs[i].iso_radii, petroObjs[i].SB, petroObjs[i].SBerr, petroObjs[i].iso_eps, petroObjs[i].isolist = isophote_fit_image_aper(dat=data,
+                                                                                                                                          aper=petroObjs[i].aper,
+                                                                                                                                          eps=petroObjs[i].iso_eps)
+
+        # PETROSIAN RADIUS
+        petroSens = 0.1
+        if len(petroObjs[i].iso_radii) > 0:
+            print("[", petroObjs[i].ID, "] Calculating petrosian radii...")
+            petro_r = petrosian_radius(radius=petroObjs[i].iso_radii, SB=petroObjs[i].SB, eps=petroObjs[i].iso_eps, sens=petroSens)
+            petroObjs[i].petroR = petro_r
+        else:
+            print("[", petroObjs[i].ID, "] No meaningful fit was possible.")
+            petroObjs[i].petroR = 0
+
+        petroObjs[i].print_all()
+
+
+    # DISPLAY
+    os.mkdir('images/' + str(SYS_TIME))
+    for obj in petroObjs:
+        z1, z2 = ZScaleInterval().get_limits(values=data)
+        fig = plt.figure(figsize=(12, 8))
+        fig.suptitle('ID [' + str(obj.ID) + ']' + '\n' +
+                     'Center: (' + str(round(obj.pos[0], 2)) + ', ' + str(round(obj.pos[1], 2)) + ') | ' +
+                     'Petrosian Radius: ' + str(round(obj.petroR, 6)))
+
+        # Raw Data
+        ax1 = plt.subplot(223)
+        crop = 70
+        ax1.imshow(data, origin="lower", cmap='magma', vmin=z1, vmax=z2)
+        cenx, ceny = int(obj.pos[0]), int(obj.pos[1])
+        ax1.set_xlim(cenx - crop, cenx + crop)
+        ax1.set_ylim(ceny - crop, ceny + crop)
+        ax1.set_xlabel('[pixels]')
+        ax1.set_ylabel('[pixels]')
+
+        # Isophote Rings
+        ax2 = plt.subplot(224)
+        nRings = 10
+        ax2.imshow(data, origin="lower", cmap='magma', vmin=z1, vmax=z2)
+        if nRings == -1:  # nRings=-1 plots all the rings
+            nRings = len(obj.isolist.to_table()['sma'])
+        if nRings != 0 and len(obj.isolist.to_table()['sma']) > 0:  # Makes sure that there is data from the isophote fit
+            rMax = obj.isolist.to_table()['sma'][-1]  # Largest radius
+            rings = np.arange(0, rMax, rMax / nRings)
+            rings += rMax / nRings
+            for sma in rings:
+                iso = obj.isolist.get_closest(sma)  # Displayed isophotes are just the closest isophotes to a certain desired sma, but
+                                                    # there are more isophotes between the ones displayed.
+                ax2.plot(iso.sampled_coordinates()[0], iso.sampled_coordinates()[1], color='g', linewidth=1)
+        ax2.set_xlim(cenx - crop, cenx + crop)
+        ax2.set_ylim(ceny - crop, ceny + crop)
+        ax2.set_xlabel('[pixels]')
+        ax2.set_ylabel('[pixels]')
+
+        # Surface Brightness plot
+        ax3 = plt.subplot(211)
+        sigma = 10
+        marker_size = 2
+        unit = '[pixels]'
+        # if units:
+        #     r = r * PIX_SCALE
+        #     unit = '[arcsec]'
+        ax3.errorbar(obj.iso_radii, obj.SB, yerr=(obj.SBerr) * sigma, fmt='o', ms=marker_size)
+        ax3.set_xlabel('radius [pixels]')
+        ax3.set_ylabel('Intensity [MJy/sr]')
+
+        plt.savefig('images/' + str(SYS_TIME) + '/' + str(obj.ID) + '_' + str(SYS_TIME) + '.png', dpi=300)
         plt.show()
 
-        plot_sb_profile(ID='26', r=tempObj.iso_radii, SB=tempObj.SB, err=tempObj.SBerr, sigma=10)
-
-        tempObj.petroR = petrosian_radius(radius=tempObj.iso_radii, SB=tempObj.SB)
-        print(tempObj.petroR)
-
-        # print(tempObj.iso_radii[0])
-
-        # with open("manualpetro.csv", 'w') as f:
-        #     for i in tempObj.iso_radii:
-        #         r =
-        #         SB =
-        #         line =
-        #         f.write(str(tempObj.iso_radii[i])+","+str(tempObj.SB[i]))
-
-        break
-
-    # # PROCESSING
-    # for targetIndex in range(0, len(cropedTargets)): # FIX ME - RANGE
-    #     try:
-    #         # IMAGE SEGMENTATION
-    #         # print("[", targetIndex, "] Image Segmintation...")
-    #         sources_x, sources_y, sources_eps, apers = image_segmintation(data=cropedTargets[targetIndex],
-    #                                                                       threshold=imageSegSens,
-    #                                                                       display=False)
-    #         try:
-    #             # ISOPHOTE FIT
-    #             # print("[", targetIndex, "] Isophote fit...")
-    #             tempObj = petrosianObject(ID=int(targetIDs[targetIndex]), pos=(sources_x[0], sources_y[0]), iso_eps=float(sources_eps[0]),
-    #                                       aper=apers[0])
-    #
-    #             tempObj.iso_radii, tempObj.SB, tempObj.SBerr, tempObj.iso_eps, tempObj.isolist = isophote_fit_image_aper(
-    #                 dat=cropedTargets[targetIndex],
-    #                 aper=tempObj.aper,
-    #                 eps=tempObj.iso_eps,
-    #                 nIsos=10,
-    #                 display=True)
-    #
-    #             # PLOT ISOPHOTES
-    #             # print("[", targetIndex, "] Plotting isophote rings...")
-    #             quick_plot(cropedTargets[targetIndex], title="Isophotes", show=False)
-    #             plt.xlabel('[pixels]')
-    #             plt.ylabel('[pixels]')
-    #             plot_isophote_rings(isolist=tempObj.isolist, nRings=-1, c='g', display=False)
-    #             plt.show()
-    #
-    #             try:
-    #                 plot_sb_profile(ID=targetIndex, r=tempObj.iso_radii, SB=tempObj.SB, err=tempObj.SBerr)
-    #                 # PETROSIAN RADIUS
-    #                 # print("[", targetIndex, "] Calculating petrosian radii...")
-    #                 if len(tempObj.iso_radii) > 0:
-    #                     petro_r = petrosian_radius(radius=tempObj.iso_radii, SB=tempObj.SB)
-    #                     if petro_r < 0:
-    #                         print("No meaningful fit was possible.")
-    #                         tempObj.petroR = 0
-    #                     else:
-    #                         tempObj.petroR = petro_r
-    #                         petroObjs.append(tempObj)
-    #                 else:
-    #                     print("No meaningful fit was possible.")
-    #                     tempObj.petroR = 0
-    #
-    #                 print("FULL SUCCESS \n")
-    #             except:
-    #                 print("[", targetIndex, "] Petrosian Radius Error")
-    #         except:
-    #             print("[", targetIndex, "] Isophote Error")
-    #     except:
-    #         print("[", targetIndex, "] Image Segmitation Error")
-    #
-    #     if targetIndex > 10:
-    #         break
-    #     time.sleep(2) # Pause between requests
+    # PRINT RADII & ID TO FILE
+    with (open('petrosians.csv', 'w') as f):
+        f.write('ID,PETROSIAN,PIXCENTERX,PIXCENTERY\n')
+        for obj in petroObjs:
+            line = str(obj.ID) + ',' + str(obj.petroR) + ',' + str(obj.pos[0]) + ',' + str(obj.pos[1]) + '\n'
+            f.write(line)
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    # OBTAIN
-    # print(queryMAST(targetPath))
-
-    # print("Obtaining data from FITS...")
-    # data, header = get_data_fits(path=mainPath, bin=bin)
-
-    # print(data[3543, 1243])
-
-    # data = data[0:3950, 0:2000] # Just temporarily manually cropping
-    # data = data[3400:3950, 1220:2000] # Just temporarily manually cropping
-
-
-
-
-
-    #
-    # print("Segmenting image...")
-    # sources_x, sources_y, sources_eps, apers = image_segmintation(data, threshold=0.9)
-    #
-    # '''
-    # BREAK DOWN
-    # '''
-    # for i in range(len(apers)):
-    #     print("[", i, "] Fiting isophotes...")
-    #     tempObj = petrosianObject(ID=i, pos=(sources_x[i], sources_y[i]), iso_eps=float(sources_eps[i]), aper=apers[i])
-    #     tempObj.iso_radii, tempObj.SB, tempObj.SBerr, tempObj.iso_eps, tempObj.isolist = isophote_fit_image_aper(data,
-    #                                                                                                              aper=tempObj.aper,
-    #                                                                                                              eps=tempObj.iso_eps,
-    #                                                                                                              nIsos=10,
-    #                                                                                                              display=False)
-    #
-    #     if len(tempObj.iso_radii) > 0:
-    #         print("[", i, "] Calculating petrosian radii...")
-    #         petro_r = petrosian_radius(radius=tempObj.iso_radii, SB=tempObj.SB)
-    #         tempObj.petroR = petro_r
-    #     else:
-    #         print("[", i, "] No meaningful fit was possible.")
-    #         tempObj.petroR = None
-    #
-    #     petroObjs.append(tempObj)
-    #
-    #
-    # '''
-    # DISPLAY
-    # '''
-    #
-    # for i in range(len(petroObjs)):
-    #     quick_plot(data, title="Isophotes [" + str(i) + "]", show=False)
-    #     if len(petroObjs[i].iso_radii) > 0:
-    #         print("[", i, "] Plotting isophote rings...")
-    #         plot_isophote_rings(isolist=petroObjs[i].isolist, nRings=-1, c='g', display=False)
-    #         plt.show()
-    #
-    #         print("[", i, "] Plotting surface brightness profile...")
-    #         plot_sb_profile(ID=i, r=petroObjs[i].iso_radii, SB=petroObjs[i].SB, err=petroObjs[i].SBerr, sigma=10, units=realUnits, save=False)
-    #
-    #         print(petroObjs[i])
-    #     time.sleep(0.5) # Pause between requests
-    # #
-    # # """
-    # # Sanity Check:
-    # # print(petro_r_avg_SB(a=radius[:50], eps=isoeps[:50], SB=SB[:50]))
-    # # Averages <~10 are >>1 since its right at that bright center, but they quickly drop
-    # # I looked at DS9 and saw the same
-    # # DS9 avg @ 111: 0.4285, Mine: 0.0017414880080206133
-    # # Weird, its report a waaaaaay too low value
-    # # I found the issue, the integral isn't calculating right. I'll fix later.
-    # # """
-    # #
-    # #
