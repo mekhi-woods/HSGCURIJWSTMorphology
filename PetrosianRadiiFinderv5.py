@@ -34,8 +34,6 @@ from astropy.wcs.utils import skycoord_to_pixel
 
 SYS_TIME = str(int(time.time())) # System Time, for purposes of naming files uniquely
 PIX_SCALE = 0.031 # arcsec/pix, from https://jwst-docs.stsci.edu/jwst-near-infrared-camera
-SPEED_OF_LIGHT = 3e5 # km/s
-H0 = 73.8 #km/s/Mpc
 DISPLAY_MODE = False
 
 class petrosianObject():
@@ -72,9 +70,6 @@ class petrosianObject():
               "PetroR: " + str(self.petroR))
         return
 
-    def toKpc(self):
-        return ((SPEED_OF_LIGHT*self.z) / H0) * self.petroR * PIX_SCALE * (np.pi/(180*3600)) * 1000
-
 def get_data_fits(path=None, bin=0):
     """
     Read in data from fits file
@@ -100,9 +95,6 @@ def quick_plot(data=None, title="Default" , cmap='magma', interpolation='antiali
     if show:
         plt.show()
     return
-
-def universalToKpc(z, d):
-    return ((SPEED_OF_LIGHT*z) / H0) * d * PIX_SCALE * (np.pi/(180*3600)) * 1000
 
 def image_segmintation(data, threshold=0.5, display=True):
     print("Plotting raw data...")
@@ -418,13 +410,8 @@ if __name__ == "__main__":
     altPath=r'downloads/jw01181-c1009_t008_nircam_clear-f090w_i2d.fits'
     altPath2=r'downloads/jw01181-o004_t008_nircam_clear-f090w_i2d.fits'
     altPath3=r'downloads/jw01181-o001_t001_nircam_clear-f090w_i2d.fits'
-    fileDesc = 'vTEST_c1009_t008'
+    fileDesc = 'c1009_t008'
     bin = 'SCI'
-
-    # Sensitivities
-    sourceSens = 0.6 # smaller = more targets
-    overlapSens = 40 # +/- number of pixels in range
-
     print("Obtaining data from FITS...")
     with fits.open(altPath) as hdul:
         hdu = hdul[bin]
@@ -438,13 +425,15 @@ if __name__ == "__main__":
     targetsPix, targetIDs, targetZs = world_to_pix(data, datacoords, targetPath)
 
     # SOURCE DETECTION
+    sourceThreshold = 0.5
     print("Detecting sources (segmenting image)...")
-    sources_x, sources_y, sources_eps, apers = image_segmintation(data, threshold=sourceSens, display=False)
+    sources_x, sources_y, sources_eps, apers = image_segmintation(data, threshold=sourceThreshold, display=False)
     positions = []
     for i in range(len(sources_x)):
         positions.append(np.array([sources_x[i], sources_y[i]]))
 
     # DETERMINE SOURCE OVERLAP WITH TARGET LIST
+    overlapSens = 20
     overlappedPositions = []
     overlappedEps = []
     overlappedApers = []
@@ -452,24 +441,21 @@ if __name__ == "__main__":
     overlappedZs = []
     for i in range(len(targetsPix)):
         for j in range(len(positions)):
-            rangex = abs(positions[j][0] - targetsPix[i][0])
-            rangey = abs(positions[j][1] - targetsPix[i][1])
-            if rangex < overlapSens and rangey < overlapSens:
+            if abs(positions[j][0] - targetsPix[i][0]) < overlapSens and abs(positions[j][1] - targetsPix[i][1]) < overlapSens:
                 overlappedPositions.append(np.array([positions[j][0], positions[j][1]]))
                 overlappedEps.append(sources_eps[j])
                 overlappedApers.append(apers[j])
                 overlappedIDs.append(targetIDs[i])
                 overlappedZs.append(targetZs[i])
 
-    # # CHECK OVERLAP
-    # plt.figure(figsize=(20, 20))
-    # quick_plot(data, title='Overlap from Gus Targets & Source Detection \n N='+str(len(overlappedPositions)), show=False)
-    # for t in targetsPix:
-    #     plt.plot(t[0], t[1], marker='+', color='g')
-    # for p in overlappedPositions:
-    #     plt.plot(p[0], p[1], marker='x', color='b')
-    # plt.xlim(-1000, 4500); plt.ylim(2500, 8250)
-    # plt.show()
+    # CHECK OVERLAP
+    quick_plot(data, title='Overlap from Gus Targets & Source Detection', show=False)
+    for t in targetsPix:
+        plt.plot(t[0], t[1], marker='+', color='g')
+    for p in overlappedPositions:
+        plt.plot(p[0], p[1], marker='x', color='b')
+    plt.xlim(-1000, 4500); plt.ylim(2500, 8250)
+    plt.show()
 
     # MAKE PETRO OBJECTS
     petroObjs = []
@@ -478,31 +464,7 @@ if __name__ == "__main__":
         petroObjs.append(tempObj)
         # tempObj.print_all()
 
-    # REMOVE DUPLICATES
-    seen = []
-    seenObj = []
-    for obj in petroObjs:
-        if obj.ID not in seen:
-            seen.append(obj.ID)
-            seenObj.append(obj)
-    petroObjs = seenObj
-
-    # CHECK OVERLAP
-    plt.figure(figsize=(10, 10))
-    quick_plot(data, title='Overlap from Gus Targets & Source Detection \n N=' +
-                           str(len(overlappedPositions) - (len(overlappedPositions) - len(seenObj))), show=False)
-    for t in targetsPix:
-        plt.plot(t[0], t[1], marker='+', color='g')
-    for obj in petroObjs:
-        plt.plot(obj.pos[0], obj.pos[1], marker='x', color='b')
-    # plt.xlim(-1000, 4500); plt.ylim(2500, 8250)
-    plt.show()
-    print("Number Overlapped: ", len(overlappedPositions) - (len(overlappedPositions) - len(seenObj)))
-    print("Number Doubled: ", len(overlappedPositions) - len(seenObj))
-    print("Expected: ", len(targetsPix))
-
     # PROCESSING
-    realPetroObjs = []
     for i in range(len(petroObjs)):
         # ISOPHOTE FIT
         print("[", petroObjs[i].ID, "] Fiting isophotes...")
@@ -516,15 +478,12 @@ if __name__ == "__main__":
             print("[", petroObjs[i].ID, "] Calculating petrosian radii...")
             petro_r = petrosian_radius(radius=petroObjs[i].iso_radii, SB=petroObjs[i].SB, eps=petroObjs[i].iso_eps, sens=petroSens)
             petroObjs[i].petroR = petro_r
-            if petro_r > 0:
-                realPetroObjs.append(petroObjs[i])
         else:
             print("[", petroObjs[i].ID, "] No meaningful fit was possible.")
             petroObjs[i].petroR = 0
 
         petroObjs[i].print_all()
 
-    print('Success Rate of Petrosian: ', (float(len(realPetroObjs))/float(len(petroObjs)))*100, '% [', len(realPetroObjs), '/', len(petroObjs), ']')
 
     # DISPLAY
     os.mkdir('images/' + fileDesc + '/' + str(SYS_TIME))
@@ -532,29 +491,19 @@ if __name__ == "__main__":
         z1, z2 = ZScaleInterval().get_limits(values=data)
         fig = plt.figure(figsize=(12, 8))
         fig.suptitle('ID [' + str(obj.ID) + ']' + '\n' +
-                     # 'Center: (' + str(round(obj.pos[0], 2)) + ', ' + str(round(obj.pos[1], 2)) + ') | ' +
-                     'Petrosian Radius : ' + str(round(obj.toKpc(), 2)) + '[kpc] | ' +
+                     'Center: (' + str(round(obj.pos[0], 2)) + ', ' + str(round(obj.pos[1], 2)) + ') | ' +
+                     'Petrosian Radius: ' + str(round(obj.petroR, 6)) + ' | ' +
                      'Redshift: ' + str(round(obj.z, 2)))
 
         # Raw Data
-        # Raw Data
-        # ax1 = plt.subplot(223)
-        # crop = 70
-        # ax1.imshow(data, origin="lower", cmap='magma', vmin=z1, vmax=z2)
-        # cenx, ceny = int(obj.pos[0]), int(obj.pos[1])
-        # ax1.set_xlim(cenx - crop, cenx + crop)
-        # ax1.set_ylim(ceny - crop, ceny + crop)
-        # ax1.set_xlabel('[pixels]')
-        # ax1.set_ylabel('[pixels]')
         ax1 = plt.subplot(223)
         crop = 70
-        cenx, ceny = int(obj.pos[0]), int(obj.pos[1])
         ax1.imshow(data, origin="lower", cmap='magma', vmin=z1, vmax=z2)
+        cenx, ceny = int(obj.pos[0]), int(obj.pos[1])
         ax1.set_xlim(cenx - crop, cenx + crop)
         ax1.set_ylim(ceny - crop, ceny + crop)
         ax1.set_xlabel('[pixels]')
         ax1.set_ylabel('[pixels]')
-
 
         # Isophote Rings
         ax2 = plt.subplot(224)
@@ -577,8 +526,14 @@ if __name__ == "__main__":
 
         # Surface Brightness plot
         ax3 = plt.subplot(211)
-        ax3.errorbar(universalToKpc(obj.z, obj.iso_radii), obj.SB, yerr=(obj.SBerr) * 10, fmt='o', ms=2)
-        ax3.set_xlabel('radius [kpc]')
+        sigma = 10
+        marker_size = 2
+        unit = '[pixels]'
+        # if units:
+        #     r = r * PIX_SCALE
+        #     unit = '[arcsec]'
+        ax3.errorbar(obj.iso_radii, obj.SB, yerr=(obj.SBerr) * sigma, fmt='o', ms=marker_size)
+        ax3.set_xlabel('radius [pixels]')
         ax3.set_ylabel('Intensity [MJy/sr]')
 
         plt.savefig('images/' + fileDesc + '/' + str(SYS_TIME)  + '/' + str(obj.ID) + '_' + str(SYS_TIME) + '.png', dpi=300)
@@ -588,11 +543,11 @@ if __name__ == "__main__":
     with (open('petrosians/'+str(fileDesc)+'_petrosians.csv', 'w') as f):
         print('Wrote to...', 'petrosians/'+str(fileDesc)+'_petrosians.csv')
         f.write('File: '+altPath+'\n')
-        f.write('ID,PETROSIANPIX,PETROSIANKPC,PIXCENTERX,PIXCENTERY,REDSHIFT\n')
+        f.write('ID,PETROSIAN,PIXCENTERX,PIXCENTERY,REDSHIFT\n')
         for obj in petroObjs:
-            line = str(obj.ID) + ',' + str(obj.petroR) + ',' + str(obj.toKpc()) + ',' + str(obj.pos[0]) + ',' + str(obj.pos[1]) + ',' + str(obj.z) + '\n'
+            line = str(obj.ID) + ',' + str(obj.petroR) + ',' + str(obj.pos[0]) + ',' + str(obj.pos[1]) + ',' + str(obj.z) + '\n'
             f.write(line)
 
-
+    # CONVERTING TO PHYSICAL UNITS
 
 

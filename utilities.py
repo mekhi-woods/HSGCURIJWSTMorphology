@@ -135,7 +135,7 @@ def isolateGal(hdfra, hdfdec, infits):
     # to the world-coordinate-system wcs
     wcs = WCS(headersci)
 
-    xHDF, yHDF = wcs.all_world2pix([[hdfra / u.deg, hdfdec / u.deg]], 0)[0]
+    xHDF, yHDF = wcs.pixel_to_world([[hdfra / u.deg, hdfdec / u.deg]], 0)[0]
 
     if xHDF < 0 or yHDF < 0:
         return [0], [0]
