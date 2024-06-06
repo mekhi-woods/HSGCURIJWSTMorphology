@@ -41,7 +41,7 @@ if __name__ == "__main__":
 
 
 
-    data = np.genfromtxt('petrosians/vTEST_c1009_t008_petrosians.csv', delimiter=',', skip_header=1)
+    data = np.genfromtxt('../petrosians/vTEST_c1009_t008_petrosians.csv', delimiter=',', skip_header=1)
     IDs = data[:, 0]
     petroR = data[:, 1]
     petroRkpc = data[:, 2]

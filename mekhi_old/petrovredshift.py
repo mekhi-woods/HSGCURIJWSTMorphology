@@ -7,7 +7,7 @@ c = 3e5 # km/s
 H0 = 73.8 #km/s/Mpc, using current WMAP data
 
 if __name__ == "__main__":
-    data = np.genfromtxt('petrosians/vTEST_c1009_t008_petrosians.csv', delimiter=',', skip_header=1)
+    data = np.genfromtxt('../petrosians/vTEST_c1009_t008_petrosians.csv', delimiter=',', skip_header=1)
     IDs = data[:, 0]
     petroR = data[:, 1]
     petroRkpc = data[:, 2]
