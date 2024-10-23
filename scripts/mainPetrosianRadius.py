@@ -1,5 +1,5 @@
 import time
-from scripts import jwstpetrosian as jp
+from petroRadii import jwstpetrosian as jp
 
 PAUSE_TIME = 0.5
 
