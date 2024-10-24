@@ -1,0 +1,18 @@
+### CONSTANTS ###
+# ================================================ #
+PAUSE_TIME, 0.5
+    # System Time, for purposes of naming files uniquely #
+PIX_SCALE, 0.031
+    # arcsec/pix, from https://jwst-docs.stsci.edu/jwst-near-infrared-camera #
+SPEED_OF_LIGHT, 3e5
+    # km/s #
+H0, 73.8
+    # km/s/Mpc #
+
+### SENSITIVITIES ###
+# ================================================ #
+PETRO_SENS, 0.01
+
+### VISUAL ###
+# ================================================ #
+CMAP, viridis

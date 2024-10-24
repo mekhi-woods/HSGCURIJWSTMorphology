@@ -14,11 +14,8 @@ from photutils.isophote import Ellipse
 from photutils.isophote import EllipseGeometry
 from photutils.segmentation import make_2dgaussian_kernel, detect_sources, SourceCatalog
 
-SYS_TIME = str(int(time.time())) # System Time, for purposes of naming files uniquely
-PIX_SCALE = 0.031 # arcsec/pix, from https://jwst-docs.stsci.edu/jwst-near-infrared-camera
-SPEED_OF_LIGHT = 3e5 # km/s
-H0 = 73.8 # km/s/Mpc
-CMAP = 'viridis'
+from scripts import general as gen
+CONSTANTS = gen.get_constants()
 
 class PetrosianObject:
     """
@@ -52,8 +49,8 @@ class PetrosianObject:
         return ("Petrosian object, " + str(self.ID) + " | Center Position: " + str(self.pos) + ", "
                 + "Petrosian Radius: " + str(self.petroR) + ", " + "Redshift: " + str(self.z))
 
-    def toKpc(self):
-        return ((SPEED_OF_LIGHT*self.z) / H0) * self.petroR * PIX_SCALE * (np.pi/(180*3600)) * 1000
+    def to_kpc(self):
+        return ((CONSTANTS['SPEED_OF_LIGHT']*self.z) / CONSTANTS['H0']) * self.petroR * CONSTANTS['PIX_SCALE'] * (np.pi/(180*3600)) * 1000
 
     # noinspection PyTypeChecker
     def display_self(self, data, nRingsDisp=10, crop=150, SBsigma=1):
@@ -67,7 +64,7 @@ class PetrosianObject:
 
         # Plot Raw Data
         ax1 = plt.subplot(223)
-        ax1.imshow(data, origin="lower", cmap=CMAP, vmin=z1, vmax=z2) # BG
+        ax1.imshow(data, origin="lower", cmap=CONSTANTS['CMAP'], vmin=z1, vmax=z2) # BG
         ax1.set_xlim(self.pos[0] - crop, self.pos[0] + crop)
         ax1.set_ylim(self.pos[1] - crop, self.pos[1] + crop)
         ax1.set_xlabel('[pixels]')
@@ -75,7 +72,7 @@ class PetrosianObject:
 
         # Plot Rings
         ax2 = plt.subplot(224)
-        ax2.imshow(data, origin="lower", cmap=CMAP, vmin=z1, vmax=z2) # BG
+        ax2.imshow(data, origin="lower", cmap=CONSTANTS['CMAP'], vmin=z1, vmax=z2) # BG
         if nRingsDisp != 0 and nRingsDisp < len(self.radius):
             for i in range(len(self.radius)):
                 if i % int(len(self.radius)/nRingsDisp) == 0:
@@ -102,19 +99,18 @@ class PetrosianObject:
         plt.show()
         return
 
-def FITS_info(path, wrkBin='SCI', errBin='ERR'):
+def FITS_info(path: str, wrkBin: str = 'SCI', errBin: str = 'ERR'):
     """
     Unpacks the FITS file
-    -----------------------------------------------
-    Input:  path, path to FITS file to unpack [str]
-            wrkBin, FITS bin to use for unpacking data [str]
-            errBin, FITS bin to use for unpacking errors [str]
-    Output: hdr, header of FITS [astropy.io.fits.header.Header]
-            data, data from FITS file [numpy.ndarray]
-            err, error from FITS file [numpy.ndarray]
-            datcrd, object that helps to find coords of certain points [astropy.wcs.wcs.WCS]
-            z1, similar to DS9 z-scale; lower limit [numpy.float64]
-            z2, similar to DS9 z-scale; upper limit [numpy.float64]
+    :param path: str; path to FITS file to unpack
+    :param wrkBin: str; FITS bin to use for unpacking data
+    :param errBin: str; FITS bin to use for unpacking errors
+    :return array(hdr: astropy.io.fits.header.Header, header of FITS
+                  data: numpy.ndarray; data from FITS file
+                  err: numpy.ndarray; error from FITS file
+                  datcrd: astropy.wcs.wcs.WCS; object that helps to find coords of certain points
+                  z1: numpy.float64; similar to DS9 z-scale, lower limit
+                  z2: numpy.float64; similar to DS9 z-scale, upper limit)
     """
     with fits.open(path) as hdul:
         hdu = hdul[wrkBin]
@@ -146,7 +142,7 @@ def world_to_pix(data, path, crds, z1, z2, show=False):
     targetZs = targets[:, 3]
 
     if show:
-        plt.imshow(data, origin="lower", cmap=CMAP, interpolation='antialiased', vmin=z1, vmax=z2)
+        plt.imshow(data, origin="lower", cmap=CONSTANTS['CMAP'], interpolation='antialiased', vmin=z1, vmax=z2)
         plt.title('Targets overlaid with data')
 
     for t in targets:
@@ -157,12 +153,16 @@ def world_to_pix(data, path, crds, z1, z2, show=False):
         allCoordPix.append(np.array([coordPix[0], coordPix[1]]))
         if show:
             plt.plot(coordPix[0], coordPix[1], marker='+', color='k')
-
     if show:
         plt.show()
+
+    # Check if target file overlaps
+    if (np.isnan(np.min(np.array(allCoordPix)[:, 0])) and np.isnan(np.min(np.array(allCoordPix)[:, 1]))):
+        raise ValueError('All target coordinates are NaN')
+
     return allCoordPix, targetIDs, targetZs
 
-def quick_plot(data=None, title="Default", color_map=CMAP, interpolation='antialiased', show=True):
+def quick_plot(data=None, title="Default", color_map=CONSTANTS['CMAP'], interpolation='antialiased', show=True):
     """
     Function to quickly plot data
     -----------------------------------------------
@@ -216,14 +216,14 @@ def image_segmintation(data, display=True):
     #                                npixels=10, nlevels=32, contrast=0.001,
     #                                progress_bar=True)
     # if display:
-    #     plt.imshow(segm_deblend, origin='lower', cmap=segment_map.cmap,
+    #     plt.imshow(segm_deblend, origin='lower', cmap=segment_map.CONSTANTS['CMAP'],
     #                interpolation='nearest')
     #     plt.xlabel("[pixels]"); plt.ylabel("[pixels]")
     #     plt.title("Deblended Segmentation Image")
     #     plt.show()
     segm_deblend = segment_map
     if display:
-        quick_plot(segment_map, title="Segmentation Image", color_map=segment_map.cmap, interpolation='nearest')
+        quick_plot(segment_map, title="Segmentation Image", color_map=segment_map.CONSTANTS['CMAP'], interpolation='nearest')
 
     print("Catalog sources...")
     cat = SourceCatalog(data, segm_deblend, convolved_data=convolved_data)
@@ -247,7 +247,7 @@ def image_segmintation(data, display=True):
 
     print("Setting Kron apertures...")
     # norm = simple_norm(data, 'sqrt')
-    quick_plot(segment_map, title='kron apertures', color_map=segment_map.cmap, show=False)
+    quick_plot(segment_map, title='kron apertures', color_map=segment_map.CONSTANTS['CMAP'], show=False)
     cat.plot_kron_apertures({{'color': 'green'}, {'lw': 1.5}})
     plt.show()
 
