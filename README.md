@@ -25,7 +25,10 @@ when measured with NIRCam versus with HST of similar populations of z=1 galaxies
 ## Operation Guide
 1. Install necessary dependencies:
    * Install necessary packages by running `pip install -r requirements.txt`
-
+2. Place FITS files of field galaxies in `fits\`
+3. Place target list in `files\`
+4. Replace file pathways with location of FITS and target file `main.py` main function.
+5. Run `main.py`
 --------------------------
 ## Petrosian Radius
 
