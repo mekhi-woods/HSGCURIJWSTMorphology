@@ -4,7 +4,7 @@ PAUSE_TIME, 0.5
     # System Time, for purposes of naming files uniquely #
 PIX_SCALE, 0.031
     # arcsec/pix, from https://jwst-docs.stsci.edu/jwst-near-infrared-camera #
-SPEED_OF_LIGHT, 3e5
+SPEED_OF_LIGHT, 300000
     # km/s #
 H0, 73.8
     # km/s/Mpc #
