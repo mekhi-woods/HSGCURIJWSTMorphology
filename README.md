@@ -44,4 +44,5 @@ Please cite the following if this repo is utilized for a scientific project:
 * python ( >= 3.9 )
 * matplotlib==3.9.2 
 * numpy==2.1.1 
+* astroquery
 
