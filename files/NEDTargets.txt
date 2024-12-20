@@ -1,3 +1,4 @@
+No.|Object Name|RA|DEC|Type|Velocity|Redshift|Redshift Flag|Magnitude and Filter|Separation|References|Notes|Photometry Points|Positions|Redshift Points|Diameter Points|Associations
 8|WISEA J200955.50+072713.5|302.48128 |   7.45380 |QSO|228442| 0.762000 |SLS |19.7R|  0.000|36|0|32|16|4|0|0
 2|2MASS J20314726+0239373|307.94688 |   2.66036 |QSO|259203| 0.864607 |SLS |17.5R|  0.000|35|0|21|20|6|0|0
 6|SDSS J203649.05-001013.8|309.20441 |  -0.17052 |G|184738| 0.616219 |SLS |19.9g|  0.000|0|0|15|2|1|4|0

@@ -1,9 +1,9 @@
 # M. D. Woods
 # A. T. Coffey
 # 11/7/2024
-
-import time as systime
+import glob
 import numpy as np
+import time as systime
 import matplotlib.pyplot as plt
 from astropy.coordinates import SkyCoord
 from astropy.visualization import ZScaleInterval
@@ -228,7 +228,7 @@ def run(fits_path: str, target_path: str = '', fit_type: str = 'std',
     """
     # Load file information
     print("[+++] Obtaining data from FITS...")
-    hdr, data, err, coords, z1, z2 = get_info(path=mainPath, wrkBin='SCI', errBin='ERR')
+    hdr, data, err, coords, z1, z2 = get_info(path=fits_path, wrkBin='SCI', errBin='ERR')
 
     # Source detection
     if len(target_path) == 0:
@@ -237,45 +237,43 @@ def run(fits_path: str, target_path: str = '', fit_type: str = 'std',
     else:
         print('[+++] Using given target list to identify sources...')
         target_data = get_targets(data, target_path, coords, True, True)
-    if len(target_data['pixCoords']) == 0:
-        raise ValueError('[!!!] No valid souces found!')
+    # if len(target_data['pixCoords']) == 0:
+    #     raise ValueError('[!!!] No valid souces found!')
 
-    # Initialize objects
-    print("[+++] Initializing Petrosian Objects...")
-    allPetrosians = []  # Container for petrosian objects
-    for i in range(len(target_data['ids'])):
-        allPetrosians.append(PetrosianObject(ID=target_data['ids'][i], realCoords=target_data['realCoords'][i],
-                                             pixCoords=target_data['pixCoords'][i], z=target_data['z'][i]))
-
-    # Fitting SB profiles
-    print("[+++] Fitting data with SSDS fit...")
-    if fit_type == 'std':
-        for obj in allPetrosians:
-            obj.SSDS_fit(data, err, r_step, r_limit, r_step_limit)
-
-    # Display results
-    print('[+++] Displaying data...')
-    for obj in allPetrosians:
-        obj.plot(data, True)
-
-    # Save data
-    print('[+++] Saved data to... results.txt')
-    with open('saved/results.txt', 'w') as f:
-        f.write('# M.D. Woods -- using sens=0.1\n')
-        f.write('ID,RA,DEC,Z,PETRO_PIX,PETRO_KPC\n')
-        for obj in allPetrosians:
-            f.write(f"{obj.ID},{obj.realCoords[0]},{obj.realCoords[1]},{obj.z},{obj.petroR},{obj.petroR_kpc}\n")
+    # # Initialize objects
+    # print("[+++] Initializing Petrosian Objects...")
+    # allPetrosians = []  # Container for petrosian objects
+    # for i in range(len(target_data['ids'])):
+    #     allPetrosians.append(PetrosianObject(ID=target_data['ids'][i], realCoords=target_data['realCoords'][i],
+    #                                          pixCoords=target_data['pixCoords'][i], z=target_data['z'][i]))
+    #
+    # # Fitting SB profiles
+    # print("[+++] Fitting data with SSDS fit...")
+    # if fit_type == 'std':
+    #     for obj in allPetrosians:
+    #         obj.SSDS_fit(data, err, r_step, r_limit, r_step_limit)
+    #
+    # # Display results
+    # print('[+++] Displaying data...')
+    # for obj in allPetrosians:
+    #     obj.plot(data, True)
+    #
+    # # Save data
+    # print('[+++] Saved data to... results.txt')
+    # with open('saved/results.txt', 'w') as f:
+    #     f.write('# M.D. Woods -- using sens=0.1\n')
+    #     f.write('ID,RA,DEC,Z,PETRO_PIX,PETRO_KPC\n')
+    #     for obj in allPetrosians:
+    #         f.write(f"{obj.ID},{obj.realCoords[0]},{obj.realCoords[1]},{obj.z},{obj.petroR},{obj.petroR_kpc}\n")
 
     return
 
 if __name__ == '__main__':
     start = systime.time()  # Runtime tracker
-    # mainPath = r'fits/jw02736-o001_t001_nircam_clear-f090w_i2d.fits' # All nan
-    # mainPath = r'fits/jw01181-o009_t009_nircam_clear-f090w_i2d.fits' # All off image
-    mainPath = r'fits/jw02514125001_03201_00002_nrca2_i2d.fits' # Some on image
-    targetPath = r'targets.csv'
-
     fitting_params = {'r_step': 0.1, 'r_limit': 30, 'r_step_limit': 30}
-    run(mainPath, targetPath, 'std', **fitting_params)
+    fits_loc = glob.glob('fits/*')
+    tar_loc = glob.glob('id_files/*')
+    for fits_path, target_path in zip(fits_loc, tar_loc):
+        run(fits_path, target_path, 'std', **fitting_params)
 
     print('|---------------------------|\n Run-time: ', round(systime.time() - start, 4), 'seconds\n|---------------------------|')
